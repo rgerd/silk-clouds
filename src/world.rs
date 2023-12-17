@@ -1,14 +1,17 @@
 use wgpu::{CommandEncoder, Device, TextureFormat};
 
+use crate::shapes::pentagon::Pentagon;
+use crate::shapes::triangle::Triangle;
+
 use crate::{
+    camera::Camera,
     mesh::{Mesh, Vertex},
-    pentagon::Pentagon,
-    triangle::Triangle,
 };
 
 pub struct World {
     mesh_render_pipeline: wgpu::RenderPipeline,
     meshes: Vec<Box<dyn Mesh>>,
+    camera: Camera,
 }
 
 impl World {
@@ -18,12 +21,14 @@ impl World {
             Box::new(Triangle::new(device)),
         ];
 
+        let camera = Camera::new(device);
+
         let shader = device.create_shader_module(wgpu::include_wgsl!("shaders/shader.wgsl"));
 
         let render_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("Mesh Render Pipeline Layout"),
-                bind_group_layouts: &[],
+                bind_group_layouts: &[camera.bind_group_layout()],
                 push_constant_ranges: &[],
             });
 
@@ -50,11 +55,8 @@ impl World {
                 strip_index_format: None,
                 front_face: wgpu::FrontFace::Ccw,
                 cull_mode: Some(wgpu::Face::Back),
-                // Setting this to anything other than Fill requires Features::NON_FILL_POLYGON_MODE
                 polygon_mode: wgpu::PolygonMode::Fill,
-                // Requires Features::DEPTH_CLIP_CONTROL
                 unclipped_depth: false,
-                // Requires Features::CONSERVATIVE_RASTERIZATION
                 conservative: false,
             },
             depth_stencil: None,
@@ -69,39 +71,44 @@ impl World {
         Self {
             mesh_render_pipeline,
             meshes,
+            camera,
         }
     }
 
-    pub fn render(&self, encoder: &mut CommandEncoder, view: &wgpu::TextureView) {
+    pub fn render(
+        &mut self,
+        encoder: &mut CommandEncoder,
+        queue: &mut wgpu::Queue,
+        view: &wgpu::TextureView,
+    ) {
+        self.camera.update(queue);
         let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: Some("Render Pass"),
-            color_attachments: &[
-                // This is what @location(0) in the fragment shader targets
-                Some(wgpu::RenderPassColorAttachment {
-                    view: &view,
-                    resolve_target: None,
-                    ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color {
-                            r: 0.1,
-                            g: 0.2,
-                            b: 0.3,
-                            a: 1.0,
-                        }),
-                        store: wgpu::StoreOp::Store,
-                    },
-                }),
-            ],
+            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                view: &view,
+                resolve_target: None,
+                ops: wgpu::Operations {
+                    load: wgpu::LoadOp::Clear(wgpu::Color {
+                        r: 0.1,
+                        g: 0.2,
+                        b: 0.3,
+                        a: 1.0,
+                    }),
+                    store: wgpu::StoreOp::Store,
+                },
+            })],
             depth_stencil_attachment: None,
             timestamp_writes: None,
             occlusion_query_set: None,
         });
 
         render_pass.set_pipeline(&self.mesh_render_pipeline);
+        render_pass.set_bind_group(0, self.camera.bind_group(), &[]);
         for mesh in &self.meshes {
             render_pass.set_vertex_buffer(0, mesh.vertex_buffer().slice(..));
 
             if let Some(index_buffer) = mesh.index_buffer() {
-                render_pass.set_index_buffer(index_buffer.slice(..), wgpu::IndexFormat::Uint32);
+                render_pass.set_index_buffer(index_buffer.slice(..), mesh.index_format().unwrap());
                 render_pass.draw_indexed(0..(mesh.index_count() as u32), 0, 0..3);
             } else {
                 render_pass.draw(0..(mesh.vertex_count() as u32), 0..3);

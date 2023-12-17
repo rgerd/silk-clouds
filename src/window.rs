@@ -1,5 +1,6 @@
 use anyhow::Result;
 use winit::{
+    dpi::PhysicalSize,
     event::*,
     event_loop::EventLoop,
     keyboard::{KeyCode, PhysicalKey},
@@ -11,6 +12,7 @@ use crate::graphics::Graphics;
 pub async fn run() -> Result<()> {
     let event_loop = EventLoop::new()?;
     let window = WindowBuilder::new().build(&event_loop)?;
+    let _ = window.request_inner_size(PhysicalSize::new(800, 600));
 
     let mut gfx = Graphics::new(window).await;
 

@@ -127,7 +127,7 @@ impl Graphics {
                 label: Some("Render Encoder"),
             });
 
-        self.world.render(&mut encoder, &view);
+        self.world.render(&mut encoder, &mut self.queue, &view);
 
         // submit will accept anything that implements IntoIter
         self.queue.submit(std::iter::once(encoder.finish()));

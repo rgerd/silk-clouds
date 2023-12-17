@@ -1,6 +1,9 @@
+mod camera;
 mod graphics;
 mod mesh;
-mod pentagon;
-mod triangle;
-pub mod window;
+mod shapes;
 mod world;
+
+pub mod window;
+
+extern crate nalgebra_glm as glm;

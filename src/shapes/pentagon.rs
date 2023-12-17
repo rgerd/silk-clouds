@@ -12,32 +12,16 @@ const VERTICES: &[Vertex] = &[
         color: [0.0, 0.5, 0.0],
     },
     Vertex {
-        position: [0.44147372, 0.2347359, 0.0],
-        color: [0.0, 0.5, 0.5],
-    },
-    Vertex {
-        position: [-0.49513406, 0.06958647, 0.0],
+        position: [-0.21918549, -0.44939706, 0.0],
         color: [0.5, 0.0, 0.0],
     },
     Vertex {
-        position: [-0.21918549, -0.44939706, 0.0],
+        position: [0.35966998, -0.3473291, 0.0],
         color: [0.5, 0.0, 0.5],
     },
     Vertex {
         position: [0.44147372, 0.2347359, 0.0],
-        color: [0.5, 0.5, 0.0],
-    },
-    Vertex {
-        position: [-0.21918549, -0.44939706, 0.0],
-        color: [0.5, 0.5, 0.5],
-    },
-    Vertex {
-        position: [0.35966998, -0.3473291, 0.0],
-        color: [0.1, 0.2, 0.5],
-    },
-    Vertex {
-        position: [0.44147372, 0.2347359, 0.0],
-        color: [0.5, 0.2, 0.1],
+        color: [0.0, 0.5, 0.5],
     },
 ];
 
@@ -57,10 +41,11 @@ impl Pentagon {
         });
 
         let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Vertex Buffer"),
+            label: Some("Index Buffer"),
             contents: bytemuck::cast_slice(INDICES),
             usage: wgpu::BufferUsages::INDEX,
         });
+
         Self {
             vertex_buffer,
             index_buffer,
@@ -82,6 +67,10 @@ impl Mesh for Pentagon {
     }
 
     fn index_buffer(&self) -> Option<&wgpu::Buffer> {
-        None
+        Some(&self.index_buffer)
+    }
+
+    fn index_format(&self) -> Option<wgpu::IndexFormat> {
+        Some(wgpu::IndexFormat::Uint16)
     }
 }

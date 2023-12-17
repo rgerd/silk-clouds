@@ -23,6 +23,14 @@ impl Vertex {
 pub trait Mesh {
     fn vertex_count(&self) -> usize;
     fn vertex_buffer(&self) -> &wgpu::Buffer;
-    fn index_count(&self) -> usize;
-    fn index_buffer(&self) -> Option<&wgpu::Buffer>;
+
+    fn index_count(&self) -> usize {
+        0
+    }
+    fn index_buffer(&self) -> Option<&wgpu::Buffer> {
+        None
+    }
+    fn index_format(&self) -> Option<wgpu::IndexFormat> {
+        None
+    }
 }
