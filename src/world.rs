@@ -1,7 +1,6 @@
 use wgpu::{CommandEncoder, Device, TextureFormat};
 
-use crate::shapes::pentagon::Pentagon;
-use crate::shapes::triangle::Triangle;
+use crate::shapes::Cube;
 
 use crate::{
     camera::Camera,
@@ -16,10 +15,7 @@ pub struct World {
 
 impl World {
     pub fn new(device: &Device, output_format: TextureFormat) -> Self {
-        let meshes: Vec<Box<dyn Mesh>> = vec![
-            Box::new(Pentagon::new(device)),
-            Box::new(Triangle::new(device)),
-        ];
+        let meshes: Vec<Box<dyn Mesh>> = vec![Box::new(Cube::new(device))];
 
         let camera = Camera::new(device);
 
@@ -109,7 +105,7 @@ impl World {
 
             if let Some(index_buffer) = mesh.index_buffer() {
                 render_pass.set_index_buffer(index_buffer.slice(..), mesh.index_format().unwrap());
-                render_pass.draw_indexed(0..(mesh.index_count() as u32), 0, 0..3);
+                render_pass.draw_indexed(0..(mesh.index_count() as u32), 0, 0..1);
             } else {
                 render_pass.draw(0..(mesh.vertex_count() as u32), 0..3);
             }

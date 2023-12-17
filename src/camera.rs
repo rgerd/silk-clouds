@@ -64,7 +64,7 @@ impl Camera {
             target: Point3::<f32>::new(0.0, 0.0, 0.0),
             // which way is "up"
             up: Vec3::new(0.0, 1.0, 0.0),
-            aspect: 600.0 / 800.0,
+            aspect: 800.0 / 600.0,
             fovy: 45.0,
             znear: 0.1,
             zfar: 100.0,
@@ -81,14 +81,14 @@ impl Camera {
     }
 
     pub fn update(&mut self, queue: &wgpu::Queue) {
-        let time = 5.0
+        let time = 2.0
             * (std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap()
                 .as_secs_f64()
                 % (PI * 2.0)) as f32;
-        self.eye.x = time.cos() * 2.0;
-        self.eye.z = time.sin() * 2.0;
+        self.eye.x = time.cos() * 3.0;
+        self.eye.z = time.sin() * 3.0;
         let mat = self.build_view_projection_matrix();
         let data = CameraUniform {
             view_proj: mat.into(),
