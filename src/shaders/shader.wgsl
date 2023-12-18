@@ -9,6 +9,9 @@ struct VertexInput {
     @builtin(instance_index) instance_id: u32,
     @location(0) position: vec3<f32>,
     @location(1) color: vec3<f32>,
+    @location(2) instance_location: vec3<f32>,
+    @location(3) instance_scale: vec3<f32>,
+    @location(4) instance_color: vec3<f32>,
 }
 
 struct VertexOutput {
@@ -20,13 +23,17 @@ struct FragmentOutput {
     @location(0) color: vec4<f32>,
 }
 
+fn rand(co: vec3<f32>) -> f32 {
+    return fract(sin(dot(co, vec3(12.9898, 78.233, 17.828)) * 0.002) * 0.004);
+}
+
 @vertex
 fn vs_main(
     in: VertexInput,
 ) -> VertexOutput {
     var out: VertexOutput;
-    out.color = in.color;
-    out.clip_position = camera.view_proj * (vec4<f32>(in.position, 1.0) + vec4<f32>(f32(in.instance_id) * 0.1, 0.0, 0.0, 0.0));
+    out.color = in.instance_color;
+    out.clip_position = camera.view_proj * (vec4<f32>(in.position * in.instance_scale, 1.0) + vec4<f32>(in.instance_location, 1.0));
     return out;
 }
 

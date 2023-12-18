@@ -7,7 +7,7 @@ use winit::{
     window::WindowBuilder,
 };
 
-use crate::graphics::Graphics;
+use crate::{graphics::Graphics, world::World};
 
 pub async fn run() -> Result<()> {
     let event_loop = EventLoop::new()?;
@@ -15,6 +15,7 @@ pub async fn run() -> Result<()> {
     let _ = window.request_inner_size(PhysicalSize::new(800, 600));
 
     let mut gfx = Graphics::new(window).await;
+    let mut world = World::new(&gfx);
 
     event_loop.run(move |event, window_target| match event {
         Event::AboutToWait => {
@@ -34,14 +35,14 @@ pub async fn run() -> Result<()> {
                 ..
             } => window_target.exit(),
             WindowEvent::KeyboardInput { .. } | WindowEvent::MouseInput { .. } => {
-                gfx.input(event);
+                world.input(event);
             }
             WindowEvent::Resized(physical_size) => {
                 gfx.resize(*physical_size);
             }
             WindowEvent::RedrawRequested => {
-                gfx.update();
-                match gfx.render() {
+                world.update();
+                match world.render(&gfx) {
                     Ok(_) => {}
                     // Reconfigure the surface if lost
                     Err(wgpu::SurfaceError::Lost) => gfx.resize(*gfx.size()),

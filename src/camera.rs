@@ -4,6 +4,8 @@ use glm::{Mat4, Vec3};
 use nalgebra::Point3;
 use wgpu::util::DeviceExt as _;
 
+use crate::{graphics::Graphics, texture};
+
 #[rustfmt::skip]
 const OPENGL_TO_WGPU_MATRIX: Mat4 = Mat4::new(
     1.0, 0.0, 0.0, 0.0,
@@ -24,10 +26,14 @@ pub struct Camera {
     buffer: wgpu::Buffer,
     bind_group_layout: wgpu::BindGroupLayout,
     bind_group: wgpu::BindGroup,
+
+    depth_texture: texture::Texture,
 }
 
 impl Camera {
-    pub fn new(device: &wgpu::Device) -> Self {
+    pub fn new(gfx: &Graphics) -> Self {
+        let device = gfx.device();
+
         let uniform = CameraUniform::new();
         let buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Camera Uniform Buffer"),
@@ -68,10 +74,21 @@ impl Camera {
             fovy: 45.0,
             znear: 0.1,
             zfar: 100.0,
+
             buffer,
             bind_group_layout,
             bind_group,
+
+            depth_texture: texture::Texture::create_depth_texture(
+                device,
+                gfx.config(),
+                "Depth texture",
+            ),
         }
+    }
+
+    pub fn depth_texture(&self) -> &texture::Texture {
+        &self.depth_texture
     }
 
     fn build_view_projection_matrix(&self) -> Mat4 {
@@ -81,14 +98,15 @@ impl Camera {
     }
 
     pub fn update(&mut self, queue: &wgpu::Queue) {
-        let time = 2.0
+        let time = 1.0
             * (std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap()
                 .as_secs_f64()
                 % (PI * 2.0)) as f32;
-        self.eye.x = time.cos() * 3.0;
-        self.eye.z = time.sin() * 3.0;
+        self.eye.x = time.cos() * 8.0;
+        self.eye.y = time.sin() * 4.0;
+        self.eye.z = time.sin() * 8.0;
         let mat = self.build_view_projection_matrix();
         let data = CameraUniform {
             view_proj: mat.into(),

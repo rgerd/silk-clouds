@@ -1,4 +1,6 @@
-use crate::mesh::{Mesh, Vertex};
+use std::f32::consts::PI;
+
+use crate::mesh::{Instance, Mesh, Vertex};
 use wgpu::util::DeviceExt as _;
 use wgpu::Device;
 
@@ -46,9 +48,12 @@ const INDICES: &[u16] = &[
     0, 2, 4, 4, 2, 6, // Back
 ];
 
+const INSTANCE_BOX_SIDE_LEN: usize = 64;
+
 pub struct Cube {
     vertex_buffer: wgpu::Buffer,
     index_buffer: wgpu::Buffer,
+    instance_buffer: wgpu::Buffer,
 }
 
 impl Cube {
@@ -65,9 +70,44 @@ impl Cube {
             usage: wgpu::BufferUsages::INDEX,
         });
 
+        let mut instances = Vec::<Instance>::new();
+        for i in 0..INSTANCE_BOX_SIDE_LEN {
+            for j in 0..INSTANCE_BOX_SIDE_LEN {
+                for k in 0..INSTANCE_BOX_SIDE_LEN {
+                    instances.push(Instance {
+                        location: [
+                            (i as i32 - INSTANCE_BOX_SIDE_LEN as i32 / 2) as f32 * 0.1,
+                            (j as i32 - INSTANCE_BOX_SIDE_LEN as i32 / 2) as f32 * 0.1,
+                            (k as i32 - INSTANCE_BOX_SIDE_LEN as i32 / 2) as f32 * 0.1,
+                        ],
+                        scale: [
+                            (i as f32 / INSTANCE_BOX_SIDE_LEN as f32 * PI * 4.0).cos() * 0.05
+                                + 0.05,
+                            (j as f32 / INSTANCE_BOX_SIDE_LEN as f32 * PI * 4.0).cos() * 0.05
+                                + 0.05,
+                            (k as f32 / INSTANCE_BOX_SIDE_LEN as f32 * PI * 4.0).cos() * 0.05
+                                + 0.05,
+                        ],
+                        color: [
+                            i as f32 / INSTANCE_BOX_SIDE_LEN as f32,
+                            j as f32 / INSTANCE_BOX_SIDE_LEN as f32,
+                            0.2,
+                        ],
+                    });
+                }
+            }
+        }
+
+        let instance_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Instance Buffer"),
+            contents: bytemuck::cast_slice(instances.as_slice()),
+            usage: wgpu::BufferUsages::VERTEX,
+        });
+
         Self {
             vertex_buffer,
             index_buffer,
+            instance_buffer,
         }
     }
 }
@@ -79,6 +119,14 @@ impl Mesh for Cube {
 
     fn vertex_buffer(&self) -> &wgpu::Buffer {
         &self.vertex_buffer
+    }
+
+    fn instance_count(&self) -> usize {
+        INSTANCE_BOX_SIDE_LEN * INSTANCE_BOX_SIDE_LEN * INSTANCE_BOX_SIDE_LEN
+    }
+
+    fn instance_buffer(&self) -> Option<&wgpu::Buffer> {
+        Some(&self.instance_buffer)
     }
 
     fn index_count(&self) -> usize {

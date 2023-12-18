@@ -1,7 +1,7 @@
-use winit::{event::WindowEvent, window::Window};
+use wgpu::{Surface, SurfaceConfiguration};
+use winit::window::Window;
 
-use crate::world::World;
-
+/// Graphics context used by a World to render.
 pub struct Graphics {
     surface: wgpu::Surface,
     device: wgpu::Device,
@@ -12,8 +12,6 @@ pub struct Graphics {
     // it gets dropped after it as the surface contains
     // unsafe references to the window's resources.
     window: Window,
-
-    world: World,
 }
 
 impl Graphics {
@@ -75,8 +73,6 @@ impl Graphics {
         };
         surface.configure(&device, &config);
 
-        let world = World::new(&device, config.format);
-
         Self {
             surface,
             device,
@@ -84,7 +80,6 @@ impl Graphics {
             config,
             size,
             window,
-            world,
         }
     }
 
@@ -109,30 +104,15 @@ impl Graphics {
         }
     }
 
-    pub fn input(&mut self, event: &WindowEvent) {
-        dbg!(event);
+    pub fn config(&self) -> &SurfaceConfiguration {
+        &self.config
     }
 
-    pub fn update(&mut self) {}
+    pub fn surface(&self) -> &Surface {
+        &self.surface
+    }
 
-    pub fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
-        let output = self.surface.get_current_texture()?;
-        let view = output
-            .texture
-            .create_view(&wgpu::TextureViewDescriptor::default());
-
-        let mut encoder = self
-            .device
-            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                label: Some("Render Encoder"),
-            });
-
-        self.world.render(&mut encoder, &mut self.queue, &view);
-
-        // submit will accept anything that implements IntoIter
-        self.queue.submit(std::iter::once(encoder.finish()));
-        output.present();
-
-        Ok(())
+    pub fn queue(&self) -> &wgpu::Queue {
+        &self.queue
     }
 }
