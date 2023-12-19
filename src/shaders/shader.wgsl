@@ -9,9 +9,10 @@ struct VertexInput {
     @builtin(instance_index) instance_id: u32,
     @location(0) position: vec3<f32>,
     @location(1) color: vec3<f32>,
-    @location(2) instance_location: vec3<f32>,
-    @location(3) instance_scale: vec3<f32>,
-    @location(4) instance_color: vec3<f32>,
+    @location(2) normal: vec3<f32>,
+    @location(3) instance_location: vec3<f32>,
+    @location(4) instance_scale: vec3<f32>,
+    @location(5) instance_color: vec3<f32>,
 }
 
 struct VertexOutput {
@@ -32,7 +33,7 @@ fn vs_main(
     in: VertexInput,
 ) -> VertexOutput {
     var out: VertexOutput;
-    out.color = in.instance_color;
+    out.color = in.color * (dot(in.normal, vec3(0.2, 0.3, 0.4)) + 0.1);
     out.clip_position = camera.view_proj * (vec4<f32>(in.position * in.instance_scale, 1.0) + vec4<f32>(in.instance_location, 1.0));
     return out;
 }

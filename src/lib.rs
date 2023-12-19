@@ -1,4 +1,5 @@
 mod camera;
+mod compute;
 mod graphics;
 mod mesh;
 mod shapes;

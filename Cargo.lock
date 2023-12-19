@@ -1434,6 +1434,7 @@ dependencies = [
  "anyhow",
  "bytemuck",
  "env_logger",
+ "flume",
  "log",
  "nalgebra",
  "nalgebra-glm",

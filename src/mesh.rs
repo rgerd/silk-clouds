@@ -3,11 +3,12 @@
 pub struct Vertex {
     pub position: [f32; 3],
     pub color: [f32; 3],
+    pub normal: [f32; 3],
 }
 
 impl Vertex {
-    const ATTRIBS: [wgpu::VertexAttribute; 2] =
-        wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x3];
+    const ATTRIBS: [wgpu::VertexAttribute; 3] =
+        wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x3, 2 => Float32x3];
 
     pub fn desc() -> wgpu::VertexBufferLayout<'static> {
         use std::mem;
@@ -30,7 +31,7 @@ pub struct Instance {
 
 impl Instance {
     const ATTRIBS: [wgpu::VertexAttribute; 3] =
-        wgpu::vertex_attr_array![2 => Float32x3, 3 => Float32x3, 4 => Float32x3];
+        wgpu::vertex_attr_array![3 => Float32x3, 4 => Float32x3, 5 => Float32x3];
 
     pub fn desc() -> wgpu::VertexBufferLayout<'static> {
         use std::mem;

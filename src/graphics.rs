@@ -38,14 +38,18 @@ impl Graphics {
             .await
             .unwrap();
 
+        let mut device_limits = wgpu::Limits::default();
+        device_limits.max_push_constant_size = 128;
         let (device, queue) = adapter
             .request_device(
                 &wgpu::DeviceDescriptor {
-                    features: wgpu::Features::empty(),
+                    features: wgpu::Features::empty()
+                        | wgpu::Features::PUSH_CONSTANTS
+                        | wgpu::Features::MAPPABLE_PRIMARY_BUFFERS,
                     limits: if cfg!(target_arch = "wasm32") {
                         wgpu::Limits::downlevel_webgl2_defaults()
                     } else {
-                        wgpu::Limits::default()
+                        device_limits
                     },
                     label: None,
                 },

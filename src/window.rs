@@ -7,7 +7,7 @@ use winit::{
     window::WindowBuilder,
 };
 
-use crate::{graphics::Graphics, world::World};
+use crate::{compute::Compute, graphics::Graphics, world::World};
 
 pub async fn run() -> Result<()> {
     let event_loop = EventLoop::new()?;
@@ -16,6 +16,7 @@ pub async fn run() -> Result<()> {
 
     let mut gfx = Graphics::new(window).await;
     let mut world = World::new(&gfx);
+    let mut compute = Compute::new(&gfx);
 
     event_loop.run(move |event, window_target| match event {
         Event::AboutToWait => {
@@ -51,6 +52,7 @@ pub async fn run() -> Result<()> {
                     // All other errors (Outdated, Timeout) should be resolved by the next frame
                     Err(e) => eprintln!("{:?}", e),
                 }
+                compute.run(&gfx);
             }
             _ => {}
         },
