@@ -6,14 +6,6 @@ use wgpu::util::DeviceExt as _;
 
 use crate::{graphics::Graphics, texture};
 
-#[rustfmt::skip]
-const OPENGL_TO_WGPU_MATRIX: Mat4 = Mat4::new(
-    1.0, 0.0, 0.0, 0.0,
-    0.0, 1.0, 0.0, 0.0,
-    0.0, 0.0, 0.5, 0.5,
-    0.0, 0.0, 0.0, 1.0,
-);
-
 pub struct Camera {
     eye: Point3<f32>,
     target: Point3<f32>,
@@ -97,19 +89,17 @@ impl Camera {
         return proj * view;
     }
 
-    pub fn update(&mut self, queue: &wgpu::Queue) {
-        let time = 1.0
-            * (std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_secs_f64()
-                % (PI * 2.0)) as f32;
+    pub fn update(&mut self, world_time: f32) {
+        let time = 1.0 * (world_time % (PI * 2.0) as f32);
         self.eye.x = time.cos() * 8.0;
         self.eye.y = time.sin() * 4.0;
         self.eye.z = time.sin() * 8.0;
-        let mat = self.build_view_projection_matrix();
+    }
+
+    pub fn write_data_buffer(&self, queue: &wgpu::Queue) {
+        let view_proj = self.build_view_projection_matrix();
         let data = CameraUniform {
-            view_proj: mat.into(),
+            view_proj: view_proj.into(),
         };
         queue.write_buffer(&self.buffer, 0, bytemuck::cast_slice(&[data]));
     }

@@ -1,3 +1,5 @@
+use std::time::Instant;
+
 use winit::event::WindowEvent;
 
 use crate::graphics::Graphics;
@@ -11,6 +13,8 @@ use crate::{
 };
 
 pub struct World {
+    creation_instant: Instant,
+    last_elapsed: f32,
     mesh_render_pipeline: wgpu::RenderPipeline,
     meshes: Vec<Box<dyn Mesh>>,
     camera: Camera,
@@ -77,17 +81,30 @@ impl World {
         });
 
         Self {
+            creation_instant: Instant::now(),
+            last_elapsed: 0.0,
             mesh_render_pipeline,
             meshes,
             camera,
         }
     }
 
-    pub fn input(&mut self, event: &WindowEvent) {
-        dbg!(event);
+    pub fn input(&mut self, window_event: &WindowEvent) {
+        // match window_event {
+        //     WindowEvent::KeyboardInput { event, .. } => {
+        //         println!("KeyboardInput: {:?}", event);
+        //     }
+        //     WindowEvent::MouseInput { button, .. } => {
+        //         println!("MouseInput: {:?}", button);
+        //     }
+        //     _ => {}
+        // }
     }
 
-    pub fn update(&mut self) {}
+    pub fn update(&mut self) {
+        let world_time = self.creation_instant.elapsed().as_secs_f32();
+        self.camera.update(world_time);
+    }
 
     pub fn render(&mut self, gfx: &Graphics) -> Result<(), wgpu::SurfaceError> {
         let output = gfx.surface().get_current_texture()?;
@@ -101,7 +118,7 @@ impl World {
                 label: Some("Render Encoder"),
             });
 
-        self.camera.update(gfx.queue());
+        self.camera.write_data_buffer(gfx.queue());
 
         {
             let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {

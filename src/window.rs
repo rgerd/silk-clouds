@@ -52,7 +52,6 @@ pub async fn run() -> Result<()> {
                     // All other errors (Outdated, Timeout) should be resolved by the next frame
                     Err(e) => eprintln!("{:?}", e),
                 }
-                compute.run(&gfx);
             }
             _ => {}
         },
