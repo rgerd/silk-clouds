@@ -45,7 +45,8 @@ impl Graphics {
                 &wgpu::DeviceDescriptor {
                     features: wgpu::Features::empty()
                         | wgpu::Features::PUSH_CONSTANTS
-                        | wgpu::Features::MAPPABLE_PRIMARY_BUFFERS,
+                        | wgpu::Features::MAPPABLE_PRIMARY_BUFFERS
+                        | wgpu::Features::TEXTURE_ADAPTER_SPECIFIC_FORMAT_FEATURES,
                     limits: if cfg!(target_arch = "wasm32") {
                         wgpu::Limits::downlevel_webgl2_defaults()
                     } else {

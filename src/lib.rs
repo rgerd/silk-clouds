@@ -3,6 +3,7 @@ mod compute;
 mod graphics;
 mod mesh;
 mod shapes;
+mod terrain;
 mod texture;
 mod world;
 

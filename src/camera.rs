@@ -2,7 +2,7 @@ use std::f64::consts::PI;
 
 use glm::{Mat4, Vec3};
 use nalgebra::Point3;
-use wgpu::util::DeviceExt as _;
+use wgpu::{util::DeviceExt as _, BindingResource};
 
 use crate::{graphics::Graphics, texture};
 
@@ -62,7 +62,7 @@ impl Camera {
             target: Point3::<f32>::new(0.0, 0.0, 0.0),
             // which way is "up"
             up: Vec3::new(0.0, 1.0, 0.0),
-            aspect: 800.0 / 600.0,
+            aspect: 1.0,
             fovy: 45.0,
             znear: 0.1,
             zfar: 100.0,
@@ -79,6 +79,10 @@ impl Camera {
         }
     }
 
+    pub fn buffer_binding_resource(&self) -> BindingResource {
+        self.buffer.as_entire_binding()
+    }
+
     pub fn depth_texture(&self) -> &texture::Texture {
         &self.depth_texture
     }
@@ -90,7 +94,7 @@ impl Camera {
     }
 
     pub fn update(&mut self, world_time: f32) {
-        let time = 1.0 * (world_time % (PI * 2.0) as f32);
+        let time = ((world_time * 0.2) % (PI * 2.0) as f32);
         self.eye.x = time.cos() * 8.0;
         self.eye.y = time.sin() * 4.0;
         self.eye.z = time.sin() * 8.0;

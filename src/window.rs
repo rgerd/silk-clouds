@@ -7,16 +7,19 @@ use winit::{
     window::WindowBuilder,
 };
 
-use crate::{compute::Compute, graphics::Graphics, world::World};
+use crate::{graphics::Graphics, terrain::Terrain};
 
 pub async fn run() -> Result<()> {
     let event_loop = EventLoop::new()?;
-    let window = WindowBuilder::new().build(&event_loop)?;
-    let _ = window.request_inner_size(PhysicalSize::new(800, 600));
+    let window = WindowBuilder::new()
+        .with_title("cloudy")
+        .build(&event_loop)?;
+    let _ = window.request_inner_size(PhysicalSize::new(1200, 1200));
 
     let mut gfx = Graphics::new(window).await;
-    let mut world = World::new(&gfx);
-    let mut compute = Compute::new(&gfx);
+    // let mut world = World::new(&gfx);
+    // let mut compute = Compute::new(&gfx);
+    let mut terrain = Terrain::new(&gfx);
 
     event_loop.run(move |event, window_target| match event {
         Event::AboutToWait => {
@@ -36,14 +39,14 @@ pub async fn run() -> Result<()> {
                 ..
             } => window_target.exit(),
             WindowEvent::KeyboardInput { .. } | WindowEvent::MouseInput { .. } => {
-                world.input(event);
+                // terrain.input(event);
             }
             WindowEvent::Resized(physical_size) => {
                 gfx.resize(*physical_size);
             }
             WindowEvent::RedrawRequested => {
-                world.update();
-                match world.render(&gfx) {
+                terrain.update();
+                match terrain.render(&gfx) {
                     Ok(_) => {}
                     // Reconfigure the surface if lost
                     Err(wgpu::SurfaceError::Lost) => gfx.resize(*gfx.size()),
