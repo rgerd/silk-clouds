@@ -51,10 +51,6 @@ impl Terrain {
             label: Some("terrain_texture_view"),
             ..Default::default()
         });
-        let sampler = gfx.device().create_sampler(&wgpu::SamplerDescriptor {
-            label: Some("terrain_sampler"),
-            ..Default::default()
-        });
 
         // Compute pipeline
         let compute_shader = gfx
@@ -68,7 +64,7 @@ impl Terrain {
                         binding: 0,
                         visibility: ShaderStages::COMPUTE,
                         ty: BindingType::StorageTexture {
-                            access: wgpu::StorageTextureAccess::ReadWrite,
+                            access: wgpu::StorageTextureAccess::WriteOnly,
                             format: TextureFormat::R32Float,
                             view_dimension: TextureViewDimension::D3,
                         },
@@ -126,12 +122,6 @@ impl Terrain {
                             view_dimension: TextureViewDimension::D3,
                             sample_type: TextureSampleType::Float { filterable: false },
                         },
-                        count: None,
-                    },
-                    BindGroupLayoutEntry {
-                        binding: 2,
-                        visibility: ShaderStages::VERTEX_FRAGMENT,
-                        ty: BindingType::Sampler(SamplerBindingType::NonFiltering),
                         count: None,
                     },
                 ],
@@ -193,10 +183,6 @@ impl Terrain {
                 wgpu::BindGroupEntry {
                     binding: 1,
                     resource: wgpu::BindingResource::TextureView(&texture_view),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 2,
-                    resource: wgpu::BindingResource::Sampler(&sampler),
                 },
             ],
         });

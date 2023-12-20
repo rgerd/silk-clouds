@@ -7,9 +7,6 @@ var<uniform> camera: CameraUniform;
 @group(0) @binding(1)
 var t_terrain: texture_3d<f32>;
 
-@group(0) @binding(2)
-var s_terrain: sampler;
-
 struct VertexInput {
     @builtin(instance_index) index: u32,
     @location(0) pos: vec3<f32>,
