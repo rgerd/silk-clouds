@@ -1,31 +1,27 @@
-use std::{f64::consts::PI, time::Instant};
+use std::time::Instant;
 
 use wgpu::{
-    BindGroup, BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingType, Color,
-    ComputePipeline, DepthStencilState, Extent3d, LoadOp, Operations, PushConstantRange,
-    RenderPassColorAttachment, RenderPassDescriptor, RenderPipeline, SamplerBindingType,
-    ShaderStages, StoreOp, SurfaceError, Texture, TextureDescriptor, TextureDimension,
-    TextureFormat, TextureSampleType, TextureUsages, TextureViewDimension,
+    util::DrawIndirect, vertex_attr_array, BindGroup, BindGroupLayoutDescriptor,
+    BindGroupLayoutEntry, BindingType, Buffer, BufferAsyncError, BufferDescriptor, BufferUsages,
+    Color, ComputePipeline, ComputePipelineDescriptor, DepthStencilState, Extent3d, LoadOp,
+    Operations, PushConstantRange, RenderPassColorAttachment, RenderPassDescriptor, RenderPipeline,
+    ShaderStages, StoreOp, SurfaceError, TextureDescriptor, TextureDimension, TextureFormat,
+    TextureSampleType, TextureUsages, TextureViewDimension, VertexAttribute, VertexBufferLayout,
 };
 
-use crate::{
-    camera::Camera,
-    graphics::Graphics,
-    mesh::{Mesh, Vertex},
-    shapes::Cube,
-    world,
-};
+use crate::{camera::Camera, graphics::Graphics, mesh::Vertex};
 
 pub struct Terrain {
     creation_instant: Instant,
     camera: Camera,
-    texture: Texture,
-    terrain_data: Vec<f32>,
-    cube: Cube,
-    render_bind_group: BindGroup,
-    compute_bind_group: BindGroup,
     compute_pipeline: ComputePipeline,
+    geometry_compute_pipeline: ComputePipeline,
     render_pipeline: RenderPipeline,
+    indirect_draw_buffer: Buffer,
+    terrain_vertex_buffer: Buffer,
+    compute_bind_group: BindGroup,
+    geometry_compute_bind_group: BindGroup,
+    render_bind_group: BindGroup,
 }
 
 impl Terrain {
@@ -81,14 +77,14 @@ impl Terrain {
                         range: 0..4,
                     }],
                 });
-        let compute_pipeline =
-            gfx.device()
-                .create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
-                    label: Some("terrain_compute_pipeline"),
-                    layout: Some(&compute_pipeline_layout),
-                    module: &compute_shader,
-                    entry_point: "main",
-                });
+        let compute_pipeline = gfx
+            .device()
+            .create_compute_pipeline(&ComputePipelineDescriptor {
+                label: Some("terrain_compute_pipeline"),
+                layout: Some(&compute_pipeline_layout),
+                module: &compute_shader,
+                entry_point: "main",
+            });
         let compute_bind_group = gfx.device().create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("terrain_compute_bind_group"),
             layout: &compute_bind_group_layout,
@@ -97,6 +93,66 @@ impl Terrain {
                 resource: wgpu::BindingResource::TextureView(&texture_view),
             }],
         });
+
+        // Geometry generation shader
+        let geometry_compute_shader = gfx
+            .device()
+            .create_shader_module(wgpu::include_wgsl!("./shaders/terrain_geometry.wgsl"));
+        let geometry_compute_bind_group_layout =
+            gfx.device()
+                .create_bind_group_layout(&BindGroupLayoutDescriptor {
+                    label: Some("terrain_geometry_compute_bind_group_layout"),
+                    entries: &[
+                        // Density data
+                        BindGroupLayoutEntry {
+                            binding: 0,
+                            visibility: ShaderStages::COMPUTE,
+                            ty: BindingType::StorageTexture {
+                                access: wgpu::StorageTextureAccess::ReadOnly,
+                                format: TextureFormat::R32Float,
+                                view_dimension: TextureViewDimension::D3,
+                            },
+                            count: None,
+                        },
+                        // Indirect draw buffer
+                        BindGroupLayoutEntry {
+                            binding: 1,
+                            visibility: ShaderStages::COMPUTE,
+                            ty: BindingType::Buffer {
+                                ty: wgpu::BufferBindingType::Storage { read_only: false },
+                                has_dynamic_offset: false,
+                                min_binding_size: None,
+                            },
+                            count: None,
+                        },
+                        // Vertex buffer
+                        BindGroupLayoutEntry {
+                            binding: 2,
+                            visibility: ShaderStages::COMPUTE,
+                            ty: BindingType::Buffer {
+                                ty: wgpu::BufferBindingType::Storage { read_only: false },
+                                has_dynamic_offset: false,
+                                min_binding_size: None,
+                            },
+                            count: None,
+                        },
+                    ],
+                });
+        let geometry_compute_pipeline_layout =
+            gfx.device()
+                .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                    label: Some("terrain_geometry_compute_pipeline_layout"),
+                    bind_group_layouts: &[&geometry_compute_bind_group_layout],
+                    push_constant_ranges: &[],
+                });
+        let geometry_compute_pipeline =
+            gfx.device()
+                .create_compute_pipeline(&ComputePipelineDescriptor {
+                    label: Some("terrain_geometry_compute_pipeline"),
+                    layout: Some(&geometry_compute_pipeline_layout),
+                    module: &geometry_compute_shader,
+                    entry_point: "main",
+                });
 
         // Render pipeline
         let bind_group_layout = gfx
@@ -137,6 +193,16 @@ impl Terrain {
             .device()
             .create_shader_module(wgpu::include_wgsl!("./shaders/terrain.wgsl"));
 
+        const ATTRIBS: [VertexAttribute; 3] =
+            vertex_attr_array![0 => Float32x4, 1 => Float32x4, 2 => Float32x4];
+        const TERRAIN_VERTEX_SIZE: u64 = 3 * 4 * 4;
+
+        let aligned_vertex_desc = VertexBufferLayout {
+            array_stride: TERRAIN_VERTEX_SIZE,
+            step_mode: wgpu::VertexStepMode::Vertex,
+            attributes: &ATTRIBS,
+        };
+
         let render_pipeline =
             gfx.device()
                 .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
@@ -145,7 +211,7 @@ impl Terrain {
                     vertex: wgpu::VertexState {
                         module: &terrain_render_shader,
                         entry_point: "vs_main",
-                        buffers: &[Vertex::desc()],
+                        buffers: &[aligned_vertex_desc],
                     },
                     fragment: Some(wgpu::FragmentState {
                         module: &terrain_render_shader,
@@ -187,40 +253,57 @@ impl Terrain {
             ],
         });
 
+        let terrain_vertex_buffer = gfx.device().create_buffer(&BufferDescriptor {
+            label: Some("terrain_vertex_buffer"),
+            size: 5 * 3 * TERRAIN_VERTEX_SIZE,
+            usage: BufferUsages::STORAGE | BufferUsages::VERTEX | BufferUsages::MAP_READ,
+            mapped_at_creation: false,
+        });
+
+        let indirect_draw_buffer = gfx.device().create_buffer(&BufferDescriptor {
+            label: Some("terrain_indirect_draw_buffer"),
+            size: std::mem::size_of::<DrawIndirect>() as u64,
+            usage: BufferUsages::STORAGE | BufferUsages::INDIRECT | BufferUsages::MAP_READ,
+            mapped_at_creation: false,
+        });
+
+        let geometry_compute_bind_group =
+            gfx.device().create_bind_group(&wgpu::BindGroupDescriptor {
+                label: Some("terrain_geometry_compute_bind_group"),
+                layout: &geometry_compute_bind_group_layout,
+                entries: &[
+                    wgpu::BindGroupEntry {
+                        binding: 0,
+                        resource: wgpu::BindingResource::TextureView(&texture_view),
+                    },
+                    wgpu::BindGroupEntry {
+                        binding: 1,
+                        resource: indirect_draw_buffer.as_entire_binding(),
+                    },
+                    wgpu::BindGroupEntry {
+                        binding: 2,
+                        resource: terrain_vertex_buffer.as_entire_binding(),
+                    },
+                ],
+            });
+
         Self {
             creation_instant: Instant::now(),
             camera,
-            terrain_data: vec![0.0_f32; 65 * 65 * 65],
-            cube: Cube::new(gfx.device()),
-            texture,
             render_bind_group: main_bind_group,
-            render_pipeline,
             compute_bind_group,
             compute_pipeline,
+            geometry_compute_pipeline,
+            geometry_compute_bind_group,
+            terrain_vertex_buffer,
+            indirect_draw_buffer,
+            render_pipeline,
         }
     }
 
     pub fn update(&mut self) {
         let world_time = self.creation_instant.elapsed().as_secs_f32();
         self.camera.update(world_time);
-
-        for i in 0..65 {
-            for j in 0..65 {
-                for k in 0..65 {
-                    let array_idx = i * 65 * 65 + j * 65 + k;
-                    let _wt = (world_time as f64) * 3.0;
-                    let _i = ((((i as f64 / 65.0) - 0.5) * PI * 2.0 + _wt).sin() * 0.5 + 0.5) * 0.3;
-                    let _j = (((j as f64 / 65.0) - 0.5) * PI * 1.0 + _wt).cos() * 0.5 + 0.5;
-                    let _k = ((((k as f64 / 65.0) - 0.5) * PI * 9.0 + _wt).sin() * 0.5 + 0.5) * 0.1;
-                    // self.terrain_data[array_idx] = ((PI * 2.0 * domain_idx as f64 / 65.0
-                    //     + world_time as f64 * 3.0)
-                    //     .sin() as f32
-                    //     + 1.0)
-                    //     * 0.5;
-                    self.terrain_data[array_idx] = ((_i + _j + _k) as f32).powf(1.0 / 3.0);
-                }
-            }
-        }
     }
 
     pub fn render(&self, gfx: &Graphics) -> anyhow::Result<(), SurfaceError> {
@@ -230,26 +313,14 @@ impl Terrain {
             .create_view(&wgpu::TextureViewDescriptor::default());
 
         self.camera.write_data_buffer(gfx.queue());
-        // gfx.queue().write_texture(
-        //     self.texture.as_image_copy(),
-        //     bytemuck::cast_slice(&self.terrain_data),
-        //     ImageDataLayout {
-        //         offset: 0,
-        //         bytes_per_row: Some(65 * 4),
-        //         rows_per_image: Some(65),
-        //     },
-        //     Extent3d {
-        //         width: 65,
-        //         height: 65,
-        //         depth_or_array_layers: 65,
-        //     },
-        // );
 
         let mut encoder = gfx
             .device()
             .create_command_encoder(&wgpu::CommandEncoderDescriptor {
                 label: Some("terrain_render_command_encoder"),
             });
+
+        // Generate density data
         {
             let mut compute_pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
                 label: Some("terrain_compute_pass"),
@@ -262,6 +333,18 @@ impl Terrain {
             compute_pass.dispatch_workgroups(1, 65, 65);
         }
 
+        // Marching cubes
+        {
+            let mut compute_pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
+                label: Some("terrain_geometry_compute_pass"),
+                timestamp_writes: None,
+            });
+            compute_pass.set_pipeline(&self.geometry_compute_pipeline);
+            compute_pass.set_bind_group(0, &self.geometry_compute_bind_group, &[]);
+            compute_pass.dispatch_workgroups(1, 1, 1);
+        }
+
+        // Render mesh
         {
             let mut render_pass = encoder.begin_render_pass(&RenderPassDescriptor {
                 label: Some("terrain_render_pass"),
@@ -285,17 +368,31 @@ impl Terrain {
             });
             render_pass.set_pipeline(&self.render_pipeline);
             render_pass.set_bind_group(0, &self.render_bind_group, &[]);
-            render_pass.set_vertex_buffer(0, self.cube.vertex_buffer().slice(..));
-            render_pass.set_index_buffer(
-                self.cube.index_buffer().unwrap().slice(..),
-                self.cube.index_format().unwrap(),
-            );
-            render_pass.draw_indexed(0..(self.cube.index_count() as u32), 0, 0..(65 * 65 * 65));
+            render_pass.set_vertex_buffer(0, self.terrain_vertex_buffer.slice(..));
+            // TODO: set index buffer
+            render_pass.draw_indirect(&self.indirect_draw_buffer, 0);
         }
 
         gfx.queue().submit(std::iter::once(encoder.finish()));
         output.present();
 
+        // let (rx, tx) = flume::bounded::<Result<(), BufferAsyncError>>(1);
+        // let draw_buffer_slice = self.terrain_vertex_buffer.slice(..);
+        // draw_buffer_slice.map_async(wgpu::MapMode::Read, move |result| rx.send(result).unwrap());
+        // gfx.device().poll(wgpu::Maintain::Wait);
+        // pollster::block_on(tx.recv_async()).unwrap().unwrap();
+        // {
+        //     let draw_buffer_view = draw_buffer_slice.get_mapped_range();
+        //     draw_buffer_view
+        //         .chunks_exact(std::mem::size_of::<Vertex>())
+        //         .map(|chunk| {
+        //             let vertex = bytemuck::from_bytes::<Vertex>(chunk);
+        //             println!("{:?}", vertex);
+        //         })
+        //         .count();
+        // }
+        // println!();
+        // self.terrain_vertex_buffer.unmap();
         Ok(())
     }
 }
