@@ -2,14 +2,14 @@ use std::time::Instant;
 
 use wgpu::{
     util::DrawIndirect, vertex_attr_array, BindGroup, BindGroupLayoutDescriptor,
-    BindGroupLayoutEntry, BindingType, Buffer, BufferAsyncError, BufferDescriptor, BufferUsages,
-    Color, ComputePipeline, ComputePipelineDescriptor, DepthStencilState, Extent3d, LoadOp,
-    Operations, PushConstantRange, RenderPassColorAttachment, RenderPassDescriptor, RenderPipeline,
+    BindGroupLayoutEntry, BindingType, Buffer, BufferDescriptor, BufferUsages, Color,
+    ComputePipeline, ComputePipelineDescriptor, DepthStencilState, Extent3d, LoadOp, Operations,
+    PushConstantRange, RenderPassColorAttachment, RenderPassDescriptor, RenderPipeline,
     ShaderStages, StoreOp, SurfaceError, TextureDescriptor, TextureDimension, TextureFormat,
     TextureSampleType, TextureUsages, TextureViewDimension, VertexAttribute, VertexBufferLayout,
 };
 
-use crate::{camera::Camera, graphics::Graphics, mesh::Vertex};
+use crate::{camera::Camera, graphics::Graphics};
 
 pub struct Terrain {
     creation_instant: Instant,
@@ -255,7 +255,9 @@ impl Terrain {
 
         let terrain_vertex_buffer = gfx.device().create_buffer(&BufferDescriptor {
             label: Some("terrain_vertex_buffer"),
-            size: 5 * 3 * TERRAIN_VERTEX_SIZE,
+            // Consider using index buffer
+            // 48 bytes gives 3 triangles, 36 bytes gives 4 triangles
+            size: 65 * 65 * 65 * 3 * 3 * TERRAIN_VERTEX_SIZE,
             usage: BufferUsages::STORAGE | BufferUsages::VERTEX | BufferUsages::MAP_READ,
             mapped_at_creation: false,
         });
@@ -263,7 +265,7 @@ impl Terrain {
         let indirect_draw_buffer = gfx.device().create_buffer(&BufferDescriptor {
             label: Some("terrain_indirect_draw_buffer"),
             size: std::mem::size_of::<DrawIndirect>() as u64,
-            usage: BufferUsages::STORAGE | BufferUsages::INDIRECT | BufferUsages::MAP_READ,
+            usage: BufferUsages::STORAGE | BufferUsages::INDIRECT | BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
 
@@ -314,6 +316,14 @@ impl Terrain {
 
         self.camera.write_data_buffer(gfx.queue());
 
+        // Clear the indirect draw buffer
+        // See wgpu::DrawIndirect
+        gfx.queue().write_buffer(
+            &self.indirect_draw_buffer,
+            0,
+            bytemuck::cast_slice(&[0_u32, 1_u32, 0_u32, 0_u32]),
+        );
+
         let mut encoder = gfx
             .device()
             .create_command_encoder(&wgpu::CommandEncoderDescriptor {
@@ -341,7 +351,7 @@ impl Terrain {
             });
             compute_pass.set_pipeline(&self.geometry_compute_pipeline);
             compute_pass.set_bind_group(0, &self.geometry_compute_bind_group, &[]);
-            compute_pass.dispatch_workgroups(1, 1, 1);
+            compute_pass.dispatch_workgroups(1, 65, 65);
         }
 
         // Render mesh
