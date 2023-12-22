@@ -1,3 +1,9 @@
+struct PushConstants {
+  chunk_id: u32
+}
+
+var<push_constant> push: PushConstants;
+
 struct CameraUniform {
     view_proj: mat4x4<f32>,
 };
@@ -19,7 +25,14 @@ struct VertexOutput {
 @vertex
 fn vs_main(in: VertexInput) -> VertexOutput {
     var out: VertexOutput;
-    out.position = camera.view_proj * vec4(((in.position.xyz / 65.0) - 0.5) * 5.0, 1.0);
+    // Align to (0, 0, 0)
+    let chunk_offset = vec3<f32>(
+        f32((push.chunk_id >> 0u) & 1u) - 1.0,
+        f32((push.chunk_id >> 1u) & 1u) - 1.0,
+        f32((push.chunk_id >> 2u) & 1u) - 1.0
+    );
+
+    out.position = camera.view_proj * vec4(((in.position.xyz / 65.0) + chunk_offset) * 5.0, 1.0);
     out.color = in.color;
     out.normal = in.normal.xyz;
     return out;

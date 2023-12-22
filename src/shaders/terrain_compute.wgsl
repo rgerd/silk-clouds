@@ -1,4 +1,9 @@
-var<push_constant> time: f32;
+struct PushConstants {
+  time: f32,
+  chunk_id: u32
+}
+
+var<push_constant> push: PushConstants;
 
 @group(0) @binding(0)
 var terrain: texture_storage_3d<rgba16float, write>;
@@ -31,7 +36,7 @@ fn snoise(v: vec2<f32>) -> f32 {
 }
 
 fn noise(v: vec3<f32>) -> f32 {
-  let cloud_time = time / 12.0;
+  let cloud_time = push.time / 9.0;
   var out = 0.0;
   
   var freq = 0.5;
@@ -56,9 +61,9 @@ const GRADIENT_D: f32 = 0.0001;
 
 @compute @workgroup_size(5, 5, 5)
 fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
-    let x = f32(global_id.x) / 65.0;
-    let y = f32(global_id.y) / 65.0;
-    let z = f32(global_id.z) / 65.0;
+    let x = f32(global_id.x) / 65.0 + f32((push.chunk_id >> 0u) & 1u);
+    let y = f32(global_id.y) / 65.0 + f32((push.chunk_id >> 1u) & 1u);
+    let z = f32(global_id.z) / 65.0 + f32((push.chunk_id >> 2u) & 1u);
 
     var density = noise(vec3(x, y, z));
     var gradient = normalize(vec3<f32>(

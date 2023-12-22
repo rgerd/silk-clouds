@@ -76,7 +76,7 @@ impl Terrain {
                     bind_group_layouts: &[&compute_bind_group_layout],
                     push_constant_ranges: &[PushConstantRange {
                         stages: ShaderStages::COMPUTE,
-                        range: 0..4,
+                        range: 0..8,
                     }],
                 });
         let compute_pipeline = gfx
@@ -199,7 +199,10 @@ impl Terrain {
                 .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                     label: Some("terrain_render_pipeline_layout"),
                     bind_group_layouts: &[&bind_group_layout],
-                    push_constant_ranges: &[],
+                    push_constant_ranges: &[PushConstantRange {
+                        stages: ShaderStages::VERTEX,
+                        range: 0..4,
+                    }],
                 });
         let terrain_render_shader = gfx
             .device()
@@ -348,76 +351,97 @@ impl Terrain {
 
         self.camera.write_data_buffer(gfx.queue());
 
-        // Clear the indirect draw buffer
-        // See wgpu::DrawIndirect
-        gfx.queue().write_buffer(
-            &self.indirect_draw_buffer,
-            0,
-            bytemuck::cast_slice(&[0_u32, 1_u32, 0_u32, 0_u32]),
-        );
+        let mut chunk_id = 0_u32;
 
-        let mut encoder = gfx
-            .device()
-            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                label: Some("terrain_render_command_encoder"),
-            });
+        for i in 0..8 {
+            chunk_id = i;
 
-        // Generate density data
-        // This step operates on the corners of the voxels
-        {
-            let mut compute_pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
-                label: Some("terrain_compute_pass"),
-                timestamp_writes: None,
-            });
-            compute_pass.set_pipeline(&self.compute_pipeline);
-            let world_time = self.creation_instant.elapsed().as_secs_f32();
-            compute_pass.set_push_constants(0, bytemuck::cast_slice(&[world_time]));
-            compute_pass.set_bind_group(0, &self.compute_bind_group, &[]);
-            compute_pass.dispatch_workgroups(13, 13, 13);
-        }
+            // Clear the indirect draw buffer
+            // See wgpu::DrawIndirect
+            gfx.queue().write_buffer(
+                &self.indirect_draw_buffer,
+                0,
+                bytemuck::cast_slice(&[0_u32, 1_u32, 0_u32, 0_u32]),
+            );
 
-        // Marching cubes
-        // This step operates on the centers of the voxels
-        {
-            let mut compute_pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
-                label: Some("terrain_geometry_compute_pass"),
-                timestamp_writes: None,
-            });
-            compute_pass.set_pipeline(&self.geometry_compute_pipeline);
-            compute_pass.set_bind_group(0, &self.geometry_compute_bind_group, &[]);
-            compute_pass.dispatch_workgroups(16, 16, 8);
-        }
+            let mut encoder =
+                gfx.device()
+                    .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                        label: Some("terrain_render_command_encoder"),
+                    });
 
-        // Render mesh
-        {
-            let mut render_pass = encoder.begin_render_pass(&RenderPassDescriptor {
-                label: Some("terrain_render_pass"),
-                color_attachments: &[Some(RenderPassColorAttachment {
-                    view: &output_view,
-                    resolve_target: None,
-                    ops: Operations {
-                        load: LoadOp::Clear(Color::BLACK),
-                        store: StoreOp::Store,
-                    },
-                })],
-                depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
-                    view: &self.camera.depth_texture().view,
-                    depth_ops: Some(wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(1.0),
-                        store: wgpu::StoreOp::Store,
+            // Generate density data
+            // This step operates on the corners of the voxels
+            {
+                let mut compute_pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
+                    label: Some("terrain_compute_pass"),
+                    timestamp_writes: None,
+                });
+                compute_pass.set_pipeline(&self.compute_pipeline);
+                let world_time = self.creation_instant.elapsed().as_secs_f32();
+                compute_pass.set_push_constants(
+                    0,
+                    bytemuck::cast_slice(&[world_time, bytemuck::cast::<u32, f32>(chunk_id)]),
+                );
+                compute_pass.set_bind_group(0, &self.compute_bind_group, &[]);
+                compute_pass.dispatch_workgroups(13, 13, 13);
+            }
+
+            // Marching cubes
+            // This step operates on the centers of the voxels
+            {
+                let mut compute_pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
+                    label: Some("terrain_geometry_compute_pass"),
+                    timestamp_writes: None,
+                });
+                compute_pass.set_pipeline(&self.geometry_compute_pipeline);
+                compute_pass.set_bind_group(0, &self.geometry_compute_bind_group, &[]);
+                compute_pass.dispatch_workgroups(16, 16, 8);
+            }
+
+            // Render mesh
+            {
+                let mut render_pass = encoder.begin_render_pass(&RenderPassDescriptor {
+                    label: Some("terrain_render_pass"),
+                    color_attachments: &[Some(RenderPassColorAttachment {
+                        view: &output_view,
+                        resolve_target: None,
+                        ops: Operations {
+                            load: if i == 0 {
+                                LoadOp::Clear(Color::BLACK)
+                            } else {
+                                LoadOp::Load
+                            },
+                            store: StoreOp::Store,
+                        },
+                    })],
+                    depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                        view: &self.camera.depth_texture().view,
+                        depth_ops: Some(wgpu::Operations {
+                            load: if i == 0 {
+                                wgpu::LoadOp::Clear(1.0)
+                            } else {
+                                wgpu::LoadOp::Load
+                            },
+                            store: wgpu::StoreOp::Store,
+                        }),
+                        stencil_ops: None,
                     }),
-                    stencil_ops: None,
-                }),
-                ..Default::default()
-            });
-            render_pass.set_pipeline(&self.render_pipeline);
-            render_pass.set_bind_group(0, &self.render_bind_group, &[]);
-            render_pass.set_vertex_buffer(0, self.terrain_vertex_buffer.slice(..));
-            // TODO: set index buffer
-            render_pass.draw_indirect(&self.indirect_draw_buffer, 0);
+                    ..Default::default()
+                });
+                render_pass.set_pipeline(&self.render_pipeline);
+                render_pass.set_push_constants(
+                    ShaderStages::VERTEX,
+                    0,
+                    bytemuck::cast_slice(&[chunk_id]),
+                );
+                render_pass.set_bind_group(0, &self.render_bind_group, &[]);
+                render_pass.set_vertex_buffer(0, self.terrain_vertex_buffer.slice(..));
+                // TODO: set index buffer
+                render_pass.draw_indirect(&self.indirect_draw_buffer, 0);
+            }
+            gfx.queue().submit(std::iter::once(encoder.finish()));
         }
-
-        gfx.queue().submit(std::iter::once(encoder.finish()));
         output.present();
 
         // let (rx, tx) = flume::bounded::<Result<(), BufferAsyncError>>(1);

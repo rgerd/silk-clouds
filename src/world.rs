@@ -34,7 +34,7 @@ impl World {
         let render_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("Mesh Render Pipeline Layout"),
-                bind_group_layouts: &[camera.bind_group_layout()],
+                bind_group_layouts: &[/*camera.bind_group_layout()*/],
                 push_constant_ranges: &[],
             });
 
@@ -149,7 +149,7 @@ impl World {
             });
 
             render_pass.set_pipeline(&self.mesh_render_pipeline);
-            render_pass.set_bind_group(0, self.camera.bind_group(), &[]);
+            // render_pass.set_bind_group(0, self.camera.bind_group(), &[]);
             for mesh in &self.meshes {
                 render_pass.set_vertex_buffer(0, mesh.vertex_buffer().slice(..));
 

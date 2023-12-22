@@ -16,8 +16,6 @@ pub struct Camera {
     zfar: f32,
 
     buffer: wgpu::Buffer,
-    bind_group_layout: wgpu::BindGroupLayout,
-    bind_group: wgpu::BindGroup,
 
     depth_texture: texture::Texture,
 }
@@ -68,8 +66,6 @@ impl Camera {
             zfar: 100.0,
 
             buffer,
-            bind_group_layout,
-            bind_group,
 
             depth_texture: texture::Texture::create_depth_texture(
                 device,
@@ -94,7 +90,7 @@ impl Camera {
     }
 
     pub fn update(&mut self, world_time: f32) {
-        let time = (world_time * 0.3) % (PI * 2.0) as f32;
+        let time = (world_time * 0.15) % (PI * 2.0) as f32;
         self.eye.x = time.cos() * 12.0;
         self.eye.y = time.sin() * 8.0;
         self.eye.z = time.sin() * 12.0;
@@ -106,14 +102,6 @@ impl Camera {
             view_proj: view_proj.into(),
         };
         queue.write_buffer(&self.buffer, 0, bytemuck::cast_slice(&[data]));
-    }
-
-    pub fn bind_group_layout(&self) -> &wgpu::BindGroupLayout {
-        &self.bind_group_layout
-    }
-
-    pub fn bind_group(&self) -> &wgpu::BindGroup {
-        &self.bind_group
     }
 }
 
