@@ -96,7 +96,7 @@ impl Camera {
     pub fn update(&mut self, world_time: f32) {
         let time = ((world_time * 0.2) % (PI * 2.0) as f32);
         self.eye.x = time.cos() * 12.0;
-        // self.eye.y = time.sin() * 4.0;
+        self.eye.y = time.sin() * 4.0;
         self.eye.z = time.sin() * 12.0;
     }
 

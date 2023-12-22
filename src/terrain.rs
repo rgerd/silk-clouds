@@ -24,14 +24,17 @@ pub struct Terrain {
     render_bind_group: BindGroup,
 }
 
+const VOXELS_PER_CHUNK_DIM: u32 = 32;
+const VERTICES_PER_VOXEL: u64 = 3 * 3;
+
 impl Terrain {
     pub fn new(gfx: &Graphics) -> Self {
         let terrain_texture_desc = TextureDescriptor {
             label: Some("terrain_texture"),
             size: Extent3d {
-                width: 65,
-                height: 65,
-                depth_or_array_layers: 65,
+                width: VOXELS_PER_CHUNK_DIM + 1,
+                height: VOXELS_PER_CHUNK_DIM + 1,
+                depth_or_array_layers: VOXELS_PER_CHUNK_DIM + 1,
             },
             mip_level_count: 1,
             sample_count: 1,
@@ -257,7 +260,11 @@ impl Terrain {
             label: Some("terrain_vertex_buffer"),
             // Consider using index buffer
             // 48 bytes gives 3 triangles, 36 bytes gives 4 triangles
-            size: 65 * 65 * 65 * 3 * 3 * TERRAIN_VERTEX_SIZE,
+            size: VOXELS_PER_CHUNK_DIM as u64
+                * VOXELS_PER_CHUNK_DIM as u64
+                * VOXELS_PER_CHUNK_DIM as u64
+                * TERRAIN_VERTEX_SIZE
+                * VERTICES_PER_VOXEL,
             usage: BufferUsages::STORAGE | BufferUsages::VERTEX | BufferUsages::MAP_READ,
             mapped_at_creation: false,
         });
@@ -331,7 +338,7 @@ impl Terrain {
             });
 
         // Generate density data
-        // This step operates on the corners of the voxels, so it's 65x65x65
+        // This step operates on the corners of the voxels
         {
             let mut compute_pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
                 label: Some("terrain_compute_pass"),
@@ -341,11 +348,11 @@ impl Terrain {
             let world_time = self.creation_instant.elapsed().as_secs_f32();
             compute_pass.set_push_constants(0, bytemuck::cast_slice(&[world_time]));
             compute_pass.set_bind_group(0, &self.compute_bind_group, &[]);
-            compute_pass.dispatch_workgroups(1, 65, 65);
+            compute_pass.dispatch_workgroups(3, 3, 33);
         }
 
         // Marching cubes
-        // This step operates on the centers of the voxels, so it's 64x64x64
+        // This step operates on the centers of the voxels, so it's 32x32x32
         {
             let mut compute_pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
                 label: Some("terrain_geometry_compute_pass"),
@@ -353,7 +360,7 @@ impl Terrain {
             });
             compute_pass.set_pipeline(&self.geometry_compute_pipeline);
             compute_pass.set_bind_group(0, &self.geometry_compute_bind_group, &[]);
-            compute_pass.dispatch_workgroups(16, 16, 8);
+            compute_pass.dispatch_workgroups(8, 8, 4);
         }
 
         // Render mesh

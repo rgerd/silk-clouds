@@ -315,14 +315,29 @@ var<storage, read_write> draw_command: IndirectDrawCommand;
 @group(0) @binding(2)
 var<storage, read_write> vertices: array<Vertex>;
 
-fn vertexInterp(iso_level: f32, p1: vec3<u32>, p2: vec3<u32>, v1: f32, v2: f32) -> Vertex {
+fn vertexInterp(iso_level: f32, p1: vec3<u32>, p2: vec3<u32>, v1: f32, v2: f32, i: u32) -> Vertex {
+    // var colors: array<vec4<f32>, 12> = array<vec4<f32>, 12>(
+    //     vec4<f32>(0.0, 0.0, 0.4, 1.0),
+    //     vec4<f32>(0.0, 0.4, 0.0, 1.0),
+    //     vec4<f32>(0.0, 0.4, 0.4, 1.0),
+    //     vec4<f32>(0.4, 0.0, 0.0, 1.0),
+    //     vec4<f32>(0.4, 0.0, 0.4, 1.0),
+    //     vec4<f32>(0.4, 0.4, 0.0, 1.0),
+    //     vec4<f32>(0.4, 0.4, 0.4, 1.0),
+    //     vec4<f32>(0.0, 0.0, 1.0, 1.0),
+    //     vec4<f32>(0.0, 1.0, 0.0, 1.0),
+    //     vec4<f32>(0.0, 1.0, 1.0, 1.0),
+    //     vec4<f32>(1.0, 0.0, 0.0, 1.0),
+    //     vec4<f32>(1.0, 0.0, 1.0, 1.0)
+    // );
+
     var vert = Vertex();
     let mu = (iso_level - v1) / (v2 - v1);
-    vert.color = vec4(vec3(1.0) * mu, 1.0);
     vert.normal = vec4(0.0, 1.0, 0.0, 0.0);
     
     let _p1 = vec4<f32>(vec3<f32>(p1), 1.0);
     let _p2 = vec4<f32>(vec3<f32>(p2), 1.0);
+    vert.color = _p1 / 33.0;// vec4(vec3(1.0) * mu, 1.0);
 
     if (abs(iso_level - v1) < 0.00001) { vert.position = _p1; return vert; }
     if (abs(iso_level - v2) < 0.00001) { vert.position = _p2; return vert; }
@@ -343,12 +358,12 @@ fn main(@builtin(global_invocation_id) thread_id : vec3<u32>) {
     let positions = array<vec3<u32>, 8>(
         thread_id + vec3<u32>(0u, 0u, 0u),
         thread_id + vec3<u32>(1u, 0u, 0u),
-        thread_id + vec3<u32>(0u, 0u, 1u),
         thread_id + vec3<u32>(1u, 0u, 1u),
+        thread_id + vec3<u32>(0u, 0u, 1u),
         thread_id + vec3<u32>(0u, 1u, 0u),
         thread_id + vec3<u32>(1u, 1u, 0u),
-        thread_id + vec3<u32>(0u, 1u, 1u),
-        thread_id + vec3<u32>(1u, 1u, 1u)
+        thread_id + vec3<u32>(1u, 1u, 1u),
+        thread_id + vec3<u32>(0u, 1u, 1u)
     );
     let densities = array<f32, 8>(
         textureLoad(terrain, positions[0]).x,
@@ -380,7 +395,7 @@ fn main(@builtin(global_invocation_id) thread_id : vec3<u32>) {
             positions[0],
             positions[1],
             densities[0],
-            densities[1]);
+            densities[1], 0u);
     }
     if (((tri_hash >> 1u) & 1u) == 1u) {
         tri_verts[1] = vertexInterp(
@@ -388,7 +403,7 @@ fn main(@builtin(global_invocation_id) thread_id : vec3<u32>) {
             positions[1],
             positions[2],
             densities[1],
-            densities[2]);
+            densities[2], 1u);
     }
     if (((tri_hash >> 2u) & 1u) == 1u) {
         tri_verts[2] = vertexInterp(
@@ -396,7 +411,7 @@ fn main(@builtin(global_invocation_id) thread_id : vec3<u32>) {
             positions[2],
             positions[3],
             densities[2],
-            densities[3]);
+            densities[3], 2u);
     }
     if (((tri_hash >> 3u) & 1u) == 1u) {
         tri_verts[3] = vertexInterp(
@@ -404,7 +419,7 @@ fn main(@builtin(global_invocation_id) thread_id : vec3<u32>) {
             positions[3],
             positions[0],
             densities[3],
-            densities[0]);
+            densities[0], 3u);
     }
     if (((tri_hash >> 4u) & 1u) == 1u) {
         tri_verts[4] = vertexInterp(
@@ -412,7 +427,7 @@ fn main(@builtin(global_invocation_id) thread_id : vec3<u32>) {
             positions[4],
             positions[5],
             densities[4],
-            densities[5]);
+            densities[5], 4u);
     }
     if (((tri_hash >> 5u) & 1u) == 1u) {
         tri_verts[5] = vertexInterp(
@@ -420,7 +435,7 @@ fn main(@builtin(global_invocation_id) thread_id : vec3<u32>) {
             positions[5],
             positions[6],
             densities[5],
-            densities[6]);
+            densities[6], 5u);
     }
     if (((tri_hash >> 6u) & 1u) == 1u) {
         tri_verts[6] = vertexInterp(
@@ -428,7 +443,7 @@ fn main(@builtin(global_invocation_id) thread_id : vec3<u32>) {
             positions[6],
             positions[7],
             densities[6],
-            densities[7]);
+            densities[7], 6u);
     }
     if (((tri_hash >> 7u) & 1u) == 1u) {
         tri_verts[7] = vertexInterp(
@@ -436,7 +451,7 @@ fn main(@builtin(global_invocation_id) thread_id : vec3<u32>) {
             positions[7],
             positions[4],
             densities[7],
-            densities[4]);
+            densities[4], 7u);
     }
     if (((tri_hash >> 8u) & 1u) == 1u) {
         tri_verts[8] = vertexInterp(
@@ -444,7 +459,7 @@ fn main(@builtin(global_invocation_id) thread_id : vec3<u32>) {
             positions[0],
             positions[4],
             densities[0],
-            densities[4]);
+            densities[4], 8u);
     }
     if (((tri_hash >> 9u) & 1u) == 1u) {
         tri_verts[9] = vertexInterp(
@@ -452,7 +467,7 @@ fn main(@builtin(global_invocation_id) thread_id : vec3<u32>) {
             positions[1],
             positions[5],
             densities[1],
-            densities[5]);
+            densities[5], 9u);
     }
     if (((tri_hash >> 10u) & 1u) == 1u) {
         tri_verts[10] = vertexInterp(
@@ -460,7 +475,7 @@ fn main(@builtin(global_invocation_id) thread_id : vec3<u32>) {
             positions[2],
             positions[6],
             densities[2],
-            densities[6]);
+            densities[6], 10u);
     }
     if (((tri_hash >> 11u) & 1u) == 1u) {
         tri_verts[11] = vertexInterp(
@@ -468,7 +483,7 @@ fn main(@builtin(global_invocation_id) thread_id : vec3<u32>) {
             positions[3],
             positions[7],
             densities[3],
-            densities[7]);
+            densities[7], 11u);
     }
     var out_vert_count = 0u;
     var tri_vert_ids = TRI_TABLE[cube_index];
