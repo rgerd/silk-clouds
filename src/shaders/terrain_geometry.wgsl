@@ -1,3 +1,9 @@
+struct PushConstants {
+  chunk_id: u32
+}
+
+var<push_constant> push: PushConstants;
+
 const EPSILON: f32 = 0.00001;
 
 struct IndirectDrawCommand {
@@ -40,7 +46,12 @@ fn vertexInterp(iso_level: f32, p1: vec3<u32>, p2: vec3<u32>, n1: vec3<f32>, n2:
     var vert = Vertex();
     vert.position = mix(_p1, _p2, mu);
     vert.normal = vec4(normalize(mix(_n1, _n2, mu)), 0.0);
-    vert.color = vec4<f32>(vert.position.xyz / 32.0, 1.0);
+    let chunk_offset = vec3<f32>(
+        f32((push.chunk_id >> 0u) & 1u),
+        f32((push.chunk_id >> 1u) & 1u),
+        f32((push.chunk_id >> 2u) & 1u)
+    );
+    vert.color = vec4<f32>(vert.position.xyz / 65.0 + chunk_offset, 1.0);
 
     return vert;
 }

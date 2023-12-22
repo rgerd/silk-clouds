@@ -167,7 +167,10 @@ impl Terrain {
                 .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                     label: Some("terrain_geometry_compute_pipeline_layout"),
                     bind_group_layouts: &[&geometry_compute_bind_group_layout],
-                    push_constant_ranges: &[],
+                    push_constant_ranges: &[PushConstantRange {
+                        stages: ShaderStages::COMPUTE,
+                        range: 0..4,
+                    }],
                 });
         let geometry_compute_pipeline =
             gfx.device()
@@ -395,6 +398,7 @@ impl Terrain {
                     timestamp_writes: None,
                 });
                 compute_pass.set_pipeline(&self.geometry_compute_pipeline);
+                compute_pass.set_push_constants(0, bytemuck::cast_slice(&[chunk_id]));
                 compute_pass.set_bind_group(0, &self.geometry_compute_bind_group, &[]);
                 compute_pass.dispatch_workgroups(16, 16, 8);
             }
