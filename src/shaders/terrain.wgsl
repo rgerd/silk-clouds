@@ -21,7 +21,7 @@ struct VertexOutput {
 @vertex
 fn vs_main(in: VertexInput) -> VertexOutput {
     var out: VertexOutput;
-    out.position = camera.view_proj * in.position;
+    out.position = camera.view_proj * vec4(in.position.xyz * 0.1, 1.0);
     out.color = in.color;
     return out;
 }

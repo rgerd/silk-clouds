@@ -331,6 +331,7 @@ impl Terrain {
             });
 
         // Generate density data
+        // This step operates on the corners of the voxels, so it's 65x65x65
         {
             let mut compute_pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
                 label: Some("terrain_compute_pass"),
@@ -344,6 +345,7 @@ impl Terrain {
         }
 
         // Marching cubes
+        // This step operates on the centers of the voxels, so it's 64x64x64
         {
             let mut compute_pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
                 label: Some("terrain_geometry_compute_pass"),
@@ -351,7 +353,7 @@ impl Terrain {
             });
             compute_pass.set_pipeline(&self.geometry_compute_pipeline);
             compute_pass.set_bind_group(0, &self.geometry_compute_bind_group, &[]);
-            compute_pass.dispatch_workgroups(1, 65, 65);
+            compute_pass.dispatch_workgroups(16, 16, 8);
         }
 
         // Render mesh
