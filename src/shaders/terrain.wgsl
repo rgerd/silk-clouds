@@ -4,9 +4,6 @@ struct CameraUniform {
 @group(0) @binding(0)
 var<uniform> camera: CameraUniform;
 
-@group(0) @binding(1)
-var t_terrain: texture_3d<f32>;
-
 struct VertexInput {
     @location(0) position: vec4<f32>,
     @location(1) color: vec4<f32>,

@@ -52,7 +52,7 @@ fn noise(v: vec3<f32>) -> f32 {
   return out;
 }
 
-@compute @workgroup_size(11, 11, 1)
+@compute @workgroup_size(5, 5, 5)
 fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     let x = f32(global_id.x) / 65.0;
     let y = f32(global_id.y) / 65.0;

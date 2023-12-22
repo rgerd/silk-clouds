@@ -6,8 +6,8 @@ use wgpu::{
     Buffer, BufferDescriptor, BufferUsages, Color, ComputePipeline, ComputePipelineDescriptor,
     DepthStencilState, Extent3d, LoadOp, Operations, PushConstantRange, RenderPassColorAttachment,
     RenderPassDescriptor, RenderPipeline, ShaderStages, StoreOp, SurfaceError, TextureDescriptor,
-    TextureDimension, TextureFormat, TextureSampleType, TextureUsages, TextureViewDimension,
-    VertexAttribute, VertexBufferLayout,
+    TextureDimension, TextureFormat, TextureUsages, TextureViewDimension, VertexAttribute,
+    VertexBufferLayout,
 };
 
 use crate::{camera::Camera, graphics::Graphics};
@@ -25,7 +25,7 @@ pub struct Terrain {
     render_bind_group: BindGroup,
 }
 
-const VOXELS_PER_CHUNK_DIM: u32 = 32;
+const VOXELS_PER_CHUNK_DIM: u32 = 64;
 const VERTICES_PER_VOXEL: u64 = 3 * 3;
 
 impl Terrain {
@@ -41,9 +41,7 @@ impl Terrain {
             sample_count: 1,
             dimension: TextureDimension::D3,
             format: TextureFormat::R32Float,
-            usage: TextureUsages::TEXTURE_BINDING
-                | TextureUsages::COPY_DST
-                | TextureUsages::STORAGE_BINDING,
+            usage: TextureUsages::STORAGE_BINDING,
             view_formats: &[TextureFormat::R32Float],
         };
         let texture = gfx.device().create_texture(&terrain_texture_desc);
@@ -185,28 +183,16 @@ impl Terrain {
             .device()
             .create_bind_group_layout(&BindGroupLayoutDescriptor {
                 label: Some("terrain_bind_group_layout"),
-                entries: &[
-                    BindGroupLayoutEntry {
-                        binding: 0,
-                        visibility: ShaderStages::VERTEX,
-                        ty: BindingType::Buffer {
-                            ty: wgpu::BufferBindingType::Uniform,
-                            has_dynamic_offset: false,
-                            min_binding_size: None,
-                        },
-                        count: None,
+                entries: &[BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: ShaderStages::VERTEX,
+                    ty: BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
                     },
-                    BindGroupLayoutEntry {
-                        binding: 1,
-                        visibility: ShaderStages::VERTEX_FRAGMENT,
-                        ty: BindingType::Texture {
-                            multisampled: false,
-                            view_dimension: TextureViewDimension::D3,
-                            sample_type: TextureSampleType::Float { filterable: false },
-                        },
-                        count: None,
-                    },
-                ],
+                    count: None,
+                }],
             });
         let render_pipeline_layout =
             gfx.device()
@@ -250,6 +236,8 @@ impl Terrain {
                     }),
                     primitive: wgpu::PrimitiveState {
                         topology: wgpu::PrimitiveTopology::TriangleList,
+                        front_face: wgpu::FrontFace::Ccw,
+                        cull_mode: None, //Some(wgpu::Face::Back),
                         ..Default::default()
                     },
                     depth_stencil: Some(DepthStencilState {
@@ -267,16 +255,10 @@ impl Terrain {
         let main_bind_group = gfx.device().create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("terrain_bind_group"),
             layout: &bind_group_layout,
-            entries: &[
-                wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: camera.buffer_binding_resource(),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 1,
-                    resource: wgpu::BindingResource::TextureView(&texture_view),
-                },
-            ],
+            entries: &[wgpu::BindGroupEntry {
+                binding: 0,
+                resource: camera.buffer_binding_resource(),
+            }],
         });
 
         let terrain_vertex_buffer = gfx.device().create_buffer(&BufferDescriptor {
@@ -288,7 +270,7 @@ impl Terrain {
                 * VOXELS_PER_CHUNK_DIM as u64
                 * TERRAIN_VERTEX_SIZE
                 * VERTICES_PER_VOXEL,
-            usage: BufferUsages::STORAGE | BufferUsages::VERTEX | BufferUsages::MAP_READ,
+            usage: BufferUsages::STORAGE | BufferUsages::VERTEX,
             mapped_at_creation: false,
         });
 
@@ -391,11 +373,11 @@ impl Terrain {
             let world_time = self.creation_instant.elapsed().as_secs_f32();
             compute_pass.set_push_constants(0, bytemuck::cast_slice(&[world_time]));
             compute_pass.set_bind_group(0, &self.compute_bind_group, &[]);
-            compute_pass.dispatch_workgroups(3, 3, 33);
+            compute_pass.dispatch_workgroups(13, 13, 13);
         }
 
         // Marching cubes
-        // This step operates on the centers of the voxels, so it's 32x32x32
+        // This step operates on the centers of the voxels
         {
             let mut compute_pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
                 label: Some("terrain_geometry_compute_pass"),
@@ -403,7 +385,7 @@ impl Terrain {
             });
             compute_pass.set_pipeline(&self.geometry_compute_pipeline);
             compute_pass.set_bind_group(0, &self.geometry_compute_bind_group, &[]);
-            compute_pass.dispatch_workgroups(8, 8, 4);
+            compute_pass.dispatch_workgroups(16, 16, 8);
         }
 
         // Render mesh
