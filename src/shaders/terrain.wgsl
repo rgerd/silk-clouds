@@ -32,7 +32,7 @@ fn vs_main(in: VertexInput) -> VertexOutput {
         f32((push.chunk_id >> 2u) & 1u) - 1.0
     );
 
-    out.position = camera.view_proj * vec4(((in.position.xyz / 65.0) + chunk_offset) * 5.0, 1.0);
+    out.position = camera.view_proj * vec4(((in.position.xyz / 64.0) + chunk_offset) * 5.0, 1.0);
     out.color = in.color;
     out.normal = in.normal.xyz;
     return out;

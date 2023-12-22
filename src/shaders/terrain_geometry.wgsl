@@ -51,7 +51,7 @@ fn vertexInterp(iso_level: f32, p1: vec3<u32>, p2: vec3<u32>, n1: vec3<f32>, n2:
         f32((push.chunk_id >> 1u) & 1u),
         f32((push.chunk_id >> 2u) & 1u)
     );
-    vert.color = vec4<f32>(vert.position.xyz / 65.0 + chunk_offset, 1.0);
+    vert.color = vec4<f32>(vert.position.xyz / 64.0 + chunk_offset, 1.0);
 
     return vert;
 }
