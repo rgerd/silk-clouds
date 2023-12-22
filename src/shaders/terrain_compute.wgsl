@@ -1,7 +1,7 @@
 var<push_constant> time: f32;
 
 @group(0) @binding(0)
-var terrain: texture_storage_3d<r32float, write>;
+var terrain: texture_storage_3d<rgba16float, write>;
 
 fn mod289_3(x: vec3<f32>) -> vec3<f32> { return x - floor(x * (1.0 / 289.0)) * 289.0; }
 fn mod289(x: vec2<f32>) -> vec2<f32> { return x - floor(x * (1.0 / 289.0)) * 289.0; }
@@ -42,15 +42,17 @@ fn noise(v: vec3<f32>) -> f32 {
 
   freq = 2.0;
   out += snoise(vec2(v.x * freq, v.y * freq + cloud_time)) * snoise(vec2(v.y * freq + cloud_time, v.z * freq)) * 0.2;
-  
-  freq = 4.0;
-  out += snoise(vec2(v.x * freq, v.y * freq + cloud_time)) * snoise(vec2(v.y * freq + cloud_time, v.z * freq)) * 0.1;
 
-  freq = 8.0;
-  out += snoise(vec2(v.x * freq, v.y * freq + cloud_time)) * snoise(vec2(v.y * freq + cloud_time, v.z * freq)) * 0.05;
+  // freq = 4.0;
+  // out += snoise(vec2(v.x * freq, v.y * freq + cloud_time)) * snoise(vec2(v.y * freq + cloud_time, v.z * freq)) * 0.1;
 
-  return out;
+  // freq = 8.0;
+  // out += snoise(vec2(v.x * freq, v.y * freq + cloud_time)) * snoise(vec2(v.y * freq + cloud_time, v.z * freq)) * 0.05;
+
+  return clamp(pow(out * 2.0, 1.2), 0.0, 1.0);
 }
+
+const GRADIENT_D: f32 = 0.0001;
 
 @compute @workgroup_size(5, 5, 5)
 fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
@@ -58,13 +60,10 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     let y = f32(global_id.y) / 65.0;
     let z = f32(global_id.z) / 65.0;
 
-    var density = noise(vec3(x, y, z)) * 2.0;
-    density = max(density, 0.0);
-    if (density < 0.05) {
-      density = 0.0;
-    }
-    density = min(density, 1.0);
-    density = pow(density, 1.2);
-    // let density = y;
-    textureStore(terrain, global_id, vec4<f32>(density, density, density, density));
+    var density = noise(vec3(x, y, z));
+    var gradient = normalize(vec3<f32>(
+      (noise(vec3(x + GRADIENT_D, y, z)) - density) / GRADIENT_D, 
+      (noise(vec3(x, y + GRADIENT_D, z)) - density) / GRADIENT_D, 
+      (noise(vec3(x, y, z + GRADIENT_D)) - density) / GRADIENT_D));
+    textureStore(terrain, global_id, vec4<f32>(density, gradient));
 }

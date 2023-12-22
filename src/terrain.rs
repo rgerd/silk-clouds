@@ -40,9 +40,9 @@ impl Terrain {
             mip_level_count: 1,
             sample_count: 1,
             dimension: TextureDimension::D3,
-            format: TextureFormat::R32Float,
+            format: TextureFormat::Rgba16Float,
             usage: TextureUsages::STORAGE_BINDING,
-            view_formats: &[TextureFormat::R32Float],
+            view_formats: &[TextureFormat::Rgba16Float],
         };
         let texture = gfx.device().create_texture(&terrain_texture_desc);
         let texture_view = texture.create_view(&wgpu::TextureViewDescriptor {
@@ -63,7 +63,7 @@ impl Terrain {
                         visibility: ShaderStages::COMPUTE,
                         ty: BindingType::StorageTexture {
                             access: wgpu::StorageTextureAccess::WriteOnly,
-                            format: TextureFormat::R32Float,
+                            format: TextureFormat::Rgba16Float,
                             view_dimension: TextureViewDimension::D3,
                         },
                         count: None,
@@ -111,7 +111,7 @@ impl Terrain {
                             visibility: ShaderStages::COMPUTE,
                             ty: BindingType::StorageTexture {
                                 access: wgpu::StorageTextureAccess::ReadOnly,
-                                format: TextureFormat::R32Float,
+                                format: TextureFormat::Rgba16Float,
                                 view_dimension: TextureViewDimension::D3,
                             },
                             count: None,

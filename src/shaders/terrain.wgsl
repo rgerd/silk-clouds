@@ -13,13 +13,15 @@ struct VertexInput {
 struct VertexOutput {
     @builtin(position) position: vec4<f32>,
     @location(0) color: vec4<f32>,
+    @location(1) normal: vec3<f32>,
 }
 
 @vertex
 fn vs_main(in: VertexInput) -> VertexOutput {
     var out: VertexOutput;
-    out.position = camera.view_proj * vec4((in.position.xyz - 0.5) * 0.2, 1.0);
+    out.position = camera.view_proj * vec4(((in.position.xyz / 65.0) - 0.5) * 5.0, 1.0);
     out.color = in.color;
+    out.normal = in.normal.xyz;
     return out;
 }
 
@@ -27,9 +29,12 @@ struct FragmentOutput {
     @location(0) color: vec4<f32>,
 }
 
+const AMBIENT: f32 = 0.1;
+
 @fragment
 fn fs_main(in: VertexOutput) -> FragmentOutput {
     var out: FragmentOutput;
-    out.color = in.color;
+    let light_dir: vec3<f32> = normalize(vec3(-0.5, -1.0, 0.0));
+    out.color = in.color * min(max(-dot(in.normal, light_dir), 0.0) + AMBIENT, 1.0);
     return out;
 }
