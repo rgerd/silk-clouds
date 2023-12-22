@@ -31,7 +31,7 @@ fn snoise(v: vec2<f32>) -> f32 {
 }
 
 fn noise(v: vec3<f32>) -> f32 {
-  let cloud_time = time / 8.0;
+  let cloud_time = time / 12.0;
   var out = 0.0;
   
   var freq = 0.5;
@@ -58,7 +58,7 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     let y = f32(global_id.y) / 65.0;
     let z = f32(global_id.z) / 65.0;
 
-    var density = noise(vec3(x, y, z));
+    var density = noise(vec3(x, y, z)) * 2.0;
     density = max(density, 0.0);
     if (density < 0.05) {
       density = 0.0;

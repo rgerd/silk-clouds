@@ -1,12 +1,13 @@
 use std::time::Instant;
 
 use wgpu::{
-    util::DrawIndirect, vertex_attr_array, BindGroup, BindGroupLayoutDescriptor,
-    BindGroupLayoutEntry, BindingType, Buffer, BufferDescriptor, BufferUsages, Color,
-    ComputePipeline, ComputePipelineDescriptor, DepthStencilState, Extent3d, LoadOp, Operations,
-    PushConstantRange, RenderPassColorAttachment, RenderPassDescriptor, RenderPipeline,
-    ShaderStages, StoreOp, SurfaceError, TextureDescriptor, TextureDimension, TextureFormat,
-    TextureSampleType, TextureUsages, TextureViewDimension, VertexAttribute, VertexBufferLayout,
+    util::{BufferInitDescriptor, DeviceExt, DrawIndirect},
+    vertex_attr_array, BindGroup, BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingType,
+    Buffer, BufferDescriptor, BufferUsages, Color, ComputePipeline, ComputePipelineDescriptor,
+    DepthStencilState, Extent3d, LoadOp, Operations, PushConstantRange, RenderPassColorAttachment,
+    RenderPassDescriptor, RenderPipeline, ShaderStages, StoreOp, SurfaceError, TextureDescriptor,
+    TextureDimension, TextureFormat, TextureSampleType, TextureUsages, TextureViewDimension,
+    VertexAttribute, VertexBufferLayout,
 };
 
 use crate::{camera::Camera, graphics::Graphics};
@@ -134,6 +135,28 @@ impl Terrain {
                             visibility: ShaderStages::COMPUTE,
                             ty: BindingType::Buffer {
                                 ty: wgpu::BufferBindingType::Storage { read_only: false },
+                                has_dynamic_offset: false,
+                                min_binding_size: None,
+                            },
+                            count: None,
+                        },
+                        // Edge table
+                        BindGroupLayoutEntry {
+                            binding: 3,
+                            visibility: ShaderStages::COMPUTE,
+                            ty: BindingType::Buffer {
+                                ty: wgpu::BufferBindingType::Storage { read_only: true },
+                                has_dynamic_offset: false,
+                                min_binding_size: None,
+                            },
+                            count: None,
+                        },
+                        // Tri table
+                        BindGroupLayoutEntry {
+                            binding: 4,
+                            visibility: ShaderStages::COMPUTE,
+                            ty: BindingType::Buffer {
+                                ty: wgpu::BufferBindingType::Storage { read_only: true },
                                 has_dynamic_offset: false,
                                 min_binding_size: None,
                             },
@@ -276,6 +299,18 @@ impl Terrain {
             mapped_at_creation: false,
         });
 
+        let edge_table_buffer = gfx.device().create_buffer_init(&BufferInitDescriptor {
+            label: Some("terrain_edge_table_buffer"),
+            contents: bytemuck::cast_slice(&crate::marching_cubes::EDGE_TABLE),
+            usage: BufferUsages::STORAGE,
+        });
+
+        let tri_table_buffer = gfx.device().create_buffer_init(&BufferInitDescriptor {
+            label: Some("terrain_tri_table_buffer"),
+            contents: bytemuck::cast_slice(&crate::marching_cubes::TRI_TABLE),
+            usage: BufferUsages::STORAGE,
+        });
+
         let geometry_compute_bind_group =
             gfx.device().create_bind_group(&wgpu::BindGroupDescriptor {
                 label: Some("terrain_geometry_compute_bind_group"),
@@ -292,6 +327,14 @@ impl Terrain {
                     wgpu::BindGroupEntry {
                         binding: 2,
                         resource: terrain_vertex_buffer.as_entire_binding(),
+                    },
+                    wgpu::BindGroupEntry {
+                        binding: 3,
+                        resource: edge_table_buffer.as_entire_binding(),
+                    },
+                    wgpu::BindGroupEntry {
+                        binding: 4,
+                        resource: tri_table_buffer.as_entire_binding(),
                     },
                 ],
             });

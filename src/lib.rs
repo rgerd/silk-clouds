@@ -1,6 +1,7 @@
 mod camera;
 mod compute;
 mod graphics;
+mod marching_cubes;
 mod mesh;
 mod shapes;
 mod terrain;
