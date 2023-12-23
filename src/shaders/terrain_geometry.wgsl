@@ -5,6 +5,7 @@ struct PushConstants {
 var<push_constant> push: PushConstants;
 
 const EPSILON: f32 = 0.000000000001;
+const VOXELS_PER_CHUNK_DIM: u32 = 64u;
 
 struct IndirectDrawCommand {
     vertex_count: atomic<u32>,
@@ -50,12 +51,12 @@ fn vertexInterp(iso_level: f32, p1: vec3<u32>, p2: vec3<u32>, n1: vec3<f32>, n2:
         f32((push.chunk_id >> 1u) & 1u),
         f32((push.chunk_id >> 2u) & 1u)
     );
-    vert.color = vec4<f32>(vert.position.xyz / 32.0 + chunk_offset, 1.0);
+    vert.color = vec4<f32>(vert.position.xyz / f32(VOXELS_PER_CHUNK_DIM) + chunk_offset, 1.0);
 
     return vert;
 }
 
-@compute @workgroup_size(4, 8, 8)
+@compute @workgroup_size(64, 4, 1)
 fn main(@builtin(global_invocation_id) thread_id : vec3<u32>) {
     let iso_level = 0.5;
     let positions = array<vec3<u32>, 8>(

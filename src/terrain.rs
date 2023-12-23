@@ -25,7 +25,7 @@ pub struct Terrain {
     render_bind_group: BindGroup,
 }
 
-const VOXELS_PER_CHUNK_DIM: u32 = 32;
+const VOXELS_PER_CHUNK_DIM: u32 = 64;
 const VERTICES_PER_VOXEL: u64 = 3 * 3;
 
 impl Terrain {
@@ -387,7 +387,7 @@ impl Terrain {
                     bytemuck::cast_slice(&[world_time, bytemuck::cast::<u32, f32>(chunk_id)]),
                 );
                 compute_pass.set_bind_group(0, &self.compute_bind_group, &[]);
-                compute_pass.dispatch_workgroups(3, 3, 33);
+                compute_pass.dispatch_workgroups(1, 65, 65);
             }
 
             // Marching cubes
@@ -400,7 +400,7 @@ impl Terrain {
                 compute_pass.set_pipeline(&self.geometry_compute_pipeline);
                 compute_pass.set_push_constants(0, bytemuck::cast_slice(&[chunk_id]));
                 compute_pass.set_bind_group(0, &self.geometry_compute_bind_group, &[]);
-                compute_pass.dispatch_workgroups(8, 4, 4);
+                compute_pass.dispatch_workgroups(1, 16, 64);
             }
 
             // Render mesh

@@ -36,7 +36,7 @@ fn snoise(v: vec2<f32>) -> f32 {
 }
 
 fn noise(v: vec3<f32>) -> f32 {
-  let cloud_time = push.time / 9.0;
+  let cloud_time = push.time / 12.0;
   var out = 0.0;
   
   var freq = 0.5;
@@ -58,12 +58,13 @@ fn noise(v: vec3<f32>) -> f32 {
 }
 
 const GRADIENT_D: f32 = 0.0001;
+const VOXELS_PER_CHUNK_DIM: u32 = 64u;
 
-@compute @workgroup_size(11, 11, 1)
+@compute @workgroup_size(65, 1, 1)
 fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
-    let x = f32(global_id.x + (((push.chunk_id >> 0u) & 1u) * 32u)) / 32.0;
-    let y = f32(global_id.y + (((push.chunk_id >> 1u) & 1u) * 32u)) / 32.0;
-    let z = f32(global_id.z + (((push.chunk_id >> 2u) & 1u) * 32u)) / 32.0;
+    let x = f32(global_id.x + (((push.chunk_id >> 0u) & 1u) * VOXELS_PER_CHUNK_DIM)) / f32(VOXELS_PER_CHUNK_DIM);
+    let y = f32(global_id.y + (((push.chunk_id >> 1u) & 1u) * VOXELS_PER_CHUNK_DIM)) / f32(VOXELS_PER_CHUNK_DIM);
+    let z = f32(global_id.z + (((push.chunk_id >> 2u) & 1u) * VOXELS_PER_CHUNK_DIM)) / f32(VOXELS_PER_CHUNK_DIM);
 
     var density = noise(vec3(x, y, z));
     var gradient = normalize(vec3<f32>(
