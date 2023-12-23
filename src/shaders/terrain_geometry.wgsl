@@ -56,7 +56,7 @@ fn vertexInterp(iso_level: f32, p1: vec3<u32>, p2: vec3<u32>, n1: vec3<f32>, n2:
     return vert;
 }
 
-@compute @workgroup_size(64, 4, 1)
+@compute @workgroup_size(64, 16, 1)
 fn main(@builtin(global_invocation_id) thread_id : vec3<u32>) {
     let iso_level = 0.5;
     let positions = array<vec3<u32>, 8>(

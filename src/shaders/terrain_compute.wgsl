@@ -60,7 +60,7 @@ fn noise(v: vec3<f32>) -> f32 {
 const GRADIENT_D: f32 = 0.0001;
 const VOXELS_PER_CHUNK_DIM: u32 = 64u;
 
-@compute @workgroup_size(65, 1, 1)
+@compute @workgroup_size(10, 9, 8)
 fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     let x = f32(global_id.x + (((push.chunk_id >> 0u) & 1u) * VOXELS_PER_CHUNK_DIM)) / f32(VOXELS_PER_CHUNK_DIM);
     let y = f32(global_id.y + (((push.chunk_id >> 1u) & 1u) * VOXELS_PER_CHUNK_DIM)) / f32(VOXELS_PER_CHUNK_DIM);

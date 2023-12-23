@@ -38,8 +38,10 @@ impl Graphics {
             .await
             .unwrap();
 
+        // Works on my M2 MacBook Air (2022)
         let mut device_limits = wgpu::Limits::default();
         device_limits.max_push_constant_size = 128;
+        device_limits.max_compute_invocations_per_workgroup = 1024;
         let (device, queue) = adapter
             .request_device(
                 &wgpu::DeviceDescriptor {
