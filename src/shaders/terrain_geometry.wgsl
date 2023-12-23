@@ -16,7 +16,6 @@ struct IndirectDrawCommand {
 
 struct Vertex {
     position: vec4<f32>,
-    color: vec4<f32>,
     normal: vec4<f32>
 };
 
@@ -42,16 +41,17 @@ fn vertexInterp(iso_level: f32, p1: vec3<u32>, p2: vec3<u32>, n1: vec3<f32>, n2:
     let _p2 = vec4<f32>(vec3<f32>(p2), 1.0);
     // let mu = clamp(max(abs(iso_level - v1), EPSILON) / max(abs(v2 - v1), EPSILON), 0.0, 1.0);
     let mu = abs(iso_level - v1) / abs(v2 - v1);
-
     var vert = Vertex();
     vert.position = mix(_p1, _p2, mu);
-    vert.normal = vec4(mix(n1, n2, mu), 0.0);
+
     let chunk_offset = vec3<f32>(
         f32((push.chunk_id >> 0u) & 1u),
         f32((push.chunk_id >> 1u) & 1u),
         f32((push.chunk_id >> 2u) & 1u)
     );
-    vert.color = vec4<f32>(vert.position.xyz / f32(VOXELS_PER_CHUNK_DIM) + chunk_offset, 1.0);
+    let global_xyz = vert.position.xyz / f32(VOXELS_PER_CHUNK_DIM) + chunk_offset;
+
+    vert.normal = vec4(mix(n1, n2, mu), (global_xyz.y / 2.0));
 
     return vert;
 }

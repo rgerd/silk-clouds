@@ -26,7 +26,7 @@ pub struct Terrain {
 }
 
 const VOXELS_PER_CHUNK_DIM: u32 = 64;
-const VERTICES_PER_VOXEL: u64 = 3 * 3;
+const VERTICES_PER_VOXEL: u64 = 2 * 3;
 
 impl Terrain {
     pub fn new(gfx: &Graphics) -> Self {
@@ -211,9 +211,8 @@ impl Terrain {
             .device()
             .create_shader_module(wgpu::include_wgsl!("./shaders/terrain.wgsl"));
 
-        const ATTRIBS: [VertexAttribute; 3] =
-            vertex_attr_array![0 => Float32x4, 1 => Float32x4, 2 => Float32x4];
-        const TERRAIN_VERTEX_SIZE: u64 = 3 * 4 * 4;
+        const ATTRIBS: [VertexAttribute; 2] = vertex_attr_array![0 => Float32x4, 1 => Float32x4];
+        const TERRAIN_VERTEX_SIZE: u64 = 2 * 4 * 4;
 
         let aligned_vertex_desc = VertexBufferLayout {
             array_stride: TERRAIN_VERTEX_SIZE,
@@ -269,8 +268,6 @@ impl Terrain {
 
         let terrain_vertex_buffer = gfx.device().create_buffer(&BufferDescriptor {
             label: Some("terrain_vertex_buffer"),
-            // Consider using index buffer
-            // 48 bytes gives 3 triangles, 36 bytes gives 4 triangles
             size: VOXELS_PER_CHUNK_DIM as u64
                 * VOXELS_PER_CHUNK_DIM as u64
                 * VOXELS_PER_CHUNK_DIM as u64
@@ -441,7 +438,6 @@ impl Terrain {
                 );
                 render_pass.set_bind_group(0, &self.render_bind_group, &[]);
                 render_pass.set_vertex_buffer(0, self.terrain_vertex_buffer.slice(..));
-                // TODO: set index buffer
                 render_pass.draw_indirect(&self.indirect_draw_buffer, 0);
             }
             gfx.queue().submit(std::iter::once(encoder.finish()));
