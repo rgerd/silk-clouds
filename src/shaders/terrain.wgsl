@@ -32,7 +32,7 @@ fn vs_main(in: VertexInput) -> VertexOutput {
         f32(((push.chunk_id >> 2u) & 1u) * 32u)
     );
 
-    out.position = camera.view_proj * vec4((((in.position.xyz + chunk_offset) / 32.0) - 1.0) * 5.0, 1.0);
+    out.position = camera.view_proj * vec4((((in.position.xyz + chunk_offset) / 32.0) - 1.0) * 8.0, 1.0);
     out.color = in.color;
     out.normal = in.normal.xyz;
     return out;
@@ -48,6 +48,6 @@ const AMBIENT: f32 = 0.1;
 fn fs_main(in: VertexOutput) -> FragmentOutput {
     var out: FragmentOutput;
     let light_dir: vec3<f32> = normalize(vec3(-0.5, -1.0, 0.0));
-    out.color = in.color * min(max(-dot(in.normal, light_dir), 0.0) + AMBIENT, 1.0);
+    out.color = vec4(in.color.xyz * min(max(-dot(normalize(in.normal), light_dir), 0.0) + AMBIENT, 1.0), 0.2);
     return out;
 }

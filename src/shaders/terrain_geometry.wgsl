@@ -37,8 +37,6 @@ var<storage, read> tri_table: array<array<i32, 16>, 256>;
 
 
 fn vertexInterp(iso_level: f32, p1: vec3<u32>, p2: vec3<u32>, n1: vec3<f32>, n2: vec3<f32>, v1: f32, v2: f32) -> Vertex {
-    let _n1 = normalize(n1);
-    let _n2 = normalize(n2);
     let _p1 = vec4<f32>(vec3<f32>(p1), 1.0);
     let _p2 = vec4<f32>(vec3<f32>(p2), 1.0);
     // let mu = clamp(max(abs(iso_level - v1), EPSILON) / max(abs(v2 - v1), EPSILON), 0.0, 1.0);
@@ -46,7 +44,7 @@ fn vertexInterp(iso_level: f32, p1: vec3<u32>, p2: vec3<u32>, n1: vec3<f32>, n2:
 
     var vert = Vertex();
     vert.position = mix(_p1, _p2, mu);
-    vert.normal = vec4(normalize(mix(_n1, _n2, mu)), 0.0);
+    vert.normal = vec4(mix(n1, n2, mu), 0.0);
     let chunk_offset = vec3<f32>(
         f32((push.chunk_id >> 0u) & 1u),
         f32((push.chunk_id >> 1u) & 1u),
