@@ -353,6 +353,7 @@ impl Terrain {
             .create_view(&wgpu::TextureViewDescriptor::default());
 
         self.camera.write_data_buffer(gfx.queue());
+        let world_time = self.creation_instant.elapsed().as_secs_f32();
 
         let mut chunk_id = 0_u32;
 
@@ -381,7 +382,6 @@ impl Terrain {
                     timestamp_writes: None,
                 });
                 compute_pass.set_pipeline(&self.compute_pipeline);
-                let world_time = self.creation_instant.elapsed().as_secs_f32();
                 compute_pass.set_push_constants(
                     0,
                     bytemuck::cast_slice(&[world_time, bytemuck::cast::<u32, f32>(chunk_id)]),
