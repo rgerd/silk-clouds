@@ -36,7 +36,7 @@ fn snoise(v: vec2<f32>) -> f32 {
 }
 
 fn noise(v: vec3<f32>) -> f32 {
-  let cloud_time = push.time / 12.0;
+  let cloud_time = push.time / 14.0;
   var out = 0.0;
   
   var freq = 0.5;
@@ -58,7 +58,7 @@ fn noise(v: vec3<f32>) -> f32 {
 }
 
 const GRADIENT_D: f32 = 0.0001;
-const VOXELS_PER_CHUNK_DIM: u32 = 64u;
+const VOXELS_PER_CHUNK_DIM: u32 = 50u;
 
 @compute @workgroup_size(10, 9, 8)
 fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {

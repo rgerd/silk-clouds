@@ -25,8 +25,8 @@ pub struct Terrain {
     render_bind_group: BindGroup,
 }
 
-const VOXELS_PER_CHUNK_DIM: u32 = 64;
-const VERTICES_PER_VOXEL: u64 = 2 * 3;
+const VOXELS_PER_CHUNK_DIM: u32 = 50;
+const VERTICES_PER_VOXEL: u64 = 1 * 3;
 
 impl Terrain {
     pub fn new(gfx: &Graphics) -> Self {
@@ -169,7 +169,7 @@ impl Terrain {
                     bind_group_layouts: &[&geometry_compute_bind_group_layout],
                     push_constant_ranges: &[PushConstantRange {
                         stages: ShaderStages::COMPUTE,
-                        range: 0..4,
+                        range: 0..8,
                     }],
                 });
         let geometry_compute_pipeline =
@@ -203,8 +203,8 @@ impl Terrain {
                     label: Some("terrain_render_pipeline_layout"),
                     bind_group_layouts: &[&bind_group_layout],
                     push_constant_ranges: &[PushConstantRange {
-                        stages: ShaderStages::VERTEX,
-                        range: 0..4,
+                        stages: ShaderStages::VERTEX_FRAGMENT,
+                        range: 0..8,
                     }],
                 });
         let terrain_render_shader = gfx
@@ -357,6 +357,9 @@ impl Terrain {
         for i in 0..8 {
             chunk_id = i;
 
+            let push_constants_slice = &[world_time, bytemuck::cast::<u32, f32>(chunk_id)];
+            let push_constants = bytemuck::cast_slice(push_constants_slice);
+
             // Clear the indirect draw buffer
             // See wgpu::DrawIndirect
             gfx.queue().write_buffer(
@@ -379,12 +382,9 @@ impl Terrain {
                     timestamp_writes: None,
                 });
                 compute_pass.set_pipeline(&self.compute_pipeline);
-                compute_pass.set_push_constants(
-                    0,
-                    bytemuck::cast_slice(&[world_time, bytemuck::cast::<u32, f32>(chunk_id)]),
-                );
+                compute_pass.set_push_constants(0, push_constants);
                 compute_pass.set_bind_group(0, &self.compute_bind_group, &[]);
-                compute_pass.dispatch_workgroups(7, 8, 9);
+                compute_pass.dispatch_workgroups(7, 7, 7);
             }
 
             // Marching cubes
@@ -395,9 +395,9 @@ impl Terrain {
                     timestamp_writes: None,
                 });
                 compute_pass.set_pipeline(&self.geometry_compute_pipeline);
-                compute_pass.set_push_constants(0, bytemuck::cast_slice(&[chunk_id]));
+                compute_pass.set_push_constants(0, push_constants);
                 compute_pass.set_bind_group(0, &self.geometry_compute_bind_group, &[]);
-                compute_pass.dispatch_workgroups(1, 4, 64);
+                compute_pass.dispatch_workgroups(5, 5, 5);
             }
 
             // Render mesh
@@ -431,11 +431,7 @@ impl Terrain {
                     ..Default::default()
                 });
                 render_pass.set_pipeline(&self.render_pipeline);
-                render_pass.set_push_constants(
-                    ShaderStages::VERTEX,
-                    0,
-                    bytemuck::cast_slice(&[chunk_id]),
-                );
+                render_pass.set_push_constants(ShaderStages::VERTEX_FRAGMENT, 0, push_constants);
                 render_pass.set_bind_group(0, &self.render_bind_group, &[]);
                 render_pass.set_vertex_buffer(0, self.terrain_vertex_buffer.slice(..));
                 render_pass.draw_indirect(&self.indirect_draw_buffer, 0);
