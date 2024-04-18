@@ -5,7 +5,7 @@ struct PushConstants {
 
 var<push_constant> push: PushConstants;
 
-const EPSILON: f32 = 0.000000000001;
+const EPSILON: f32 = 0.0000001;
 const VOXELS_PER_CHUNK_DIM: u32 = 50u;
 
 struct IndirectDrawCommand {
@@ -21,7 +21,7 @@ struct Vertex {
 };
 
 @group(0) @binding(0)
-var terrain: texture_storage_3d<rgba16float, read>;
+var density: texture_storage_3d<rgba16float, read>;
 
 @group(0) @binding(1)
 var<storage, read_write> draw_command: IndirectDrawCommand;
@@ -40,8 +40,8 @@ var<storage, read> tri_table: array<array<i32, 16>, 256>;
 fn vertexInterp(iso_level: f32, p1: vec3<u32>, p2: vec3<u32>, n1: vec3<f32>, n2: vec3<f32>, v1: f32, v2: f32) -> Vertex {
     let _p1 = vec4<f32>(vec3<f32>(p1), 1.0);
     let _p2 = vec4<f32>(vec3<f32>(p2), 1.0);
-    // let mu = clamp(max(abs(iso_level - v1), EPSILON) / max(abs(v2 - v1), EPSILON), 0.0, 1.0);
-    let mu = abs(iso_level - v1) / abs(v2 - v1);
+    let mu = clamp(max(abs(iso_level - v1), EPSILON) / max(abs(v2 - v1), EPSILON), 0.0, 1.0);
+
     var vert = Vertex();
     vert.position = mix(_p1, _p2, mu);
 
@@ -71,14 +71,14 @@ fn main(@builtin(global_invocation_id) thread_id : vec3<u32>) {
         thread_id + vec3<u32>(0u, 1u, 1u)
     );
     let data = array<vec4<f32>, 8>(
-        textureLoad(terrain, positions[0u]),
-        textureLoad(terrain, positions[1u]),
-        textureLoad(terrain, positions[2u]),
-        textureLoad(terrain, positions[3u]),
-        textureLoad(terrain, positions[4u]),
-        textureLoad(terrain, positions[5u]),
-        textureLoad(terrain, positions[6u]),
-        textureLoad(terrain, positions[7u]),
+        textureLoad(density, positions[0u]),
+        textureLoad(density, positions[1u]),
+        textureLoad(density, positions[2u]),
+        textureLoad(density, positions[3u]),
+        textureLoad(density, positions[4u]),
+        textureLoad(density, positions[5u]),
+        textureLoad(density, positions[6u]),
+        textureLoad(density, positions[7u]),
     );
     let cube_index =
         (u32(step(data[0u].x, iso_level)) << 0u) | 

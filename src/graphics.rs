@@ -1,7 +1,6 @@
 use wgpu::{Surface, SurfaceConfiguration};
 use winit::window::Window;
 
-/// Graphics context used by a World to render.
 pub struct Graphics {
     surface: wgpu::Surface,
     device: wgpu::Device,

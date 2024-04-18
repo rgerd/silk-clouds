@@ -6,7 +6,7 @@ struct PushConstants {
 var<push_constant> push: PushConstants;
 
 @group(0) @binding(0)
-var terrain: texture_storage_3d<rgba16float, write>;
+var density: texture_storage_3d<rgba16float, write>;
 
 fn mod289_3(x: vec3<f32>) -> vec3<f32> { return x - floor(x * (1.0 / 289.0)) * 289.0; }
 fn mod289(x: vec2<f32>) -> vec2<f32> { return x - floor(x * (1.0 / 289.0)) * 289.0; }
@@ -48,12 +48,6 @@ fn noise(v: vec3<f32>) -> f32 {
   freq = 2.0;
   out += snoise(vec2(v.x * freq, v.y * freq + cloud_time)) * snoise(vec2(v.y * freq + cloud_time, v.z * freq)) * 0.2;
 
-  // freq = 4.0;
-  // out += snoise(vec2(v.x * freq, v.y * freq + cloud_time)) * snoise(vec2(v.y * freq + cloud_time, v.z * freq)) * 0.1;
-
-  // freq = 8.0;
-  // out += snoise(vec2(v.x * freq, v.y * freq + cloud_time)) * snoise(vec2(v.y * freq + cloud_time, v.z * freq)) * 0.05;
-
   return clamp(pow(out * 2.0, 1.2), 0.0, 1.0);
 }
 
@@ -66,10 +60,10 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
     let y = f32(global_id.y + (((push.chunk_id >> 1u) & 1u) * VOXELS_PER_CHUNK_DIM)) / f32(VOXELS_PER_CHUNK_DIM);
     let z = f32(global_id.z + (((push.chunk_id >> 2u) & 1u) * VOXELS_PER_CHUNK_DIM)) / f32(VOXELS_PER_CHUNK_DIM);
 
-    var density = noise(vec3(x, y, z));
+    var sample = noise(vec3(x, y, z));
     var gradient = normalize(vec3<f32>(
-      (noise(vec3(x + GRADIENT_D, y, z)) - density) / GRADIENT_D, 
-      (noise(vec3(x, y + GRADIENT_D, z)) - density) / GRADIENT_D, 
-      (noise(vec3(x, y, z + GRADIENT_D)) - density) / GRADIENT_D));
-    textureStore(terrain, global_id, vec4<f32>(density, gradient));
+      (noise(vec3(x + GRADIENT_D, y, z)) - sample) / GRADIENT_D, 
+      (noise(vec3(x, y + GRADIENT_D, z)) - sample) / GRADIENT_D, 
+      (noise(vec3(x, y, z + GRADIENT_D)) - sample) / GRADIENT_D));
+    textureStore(density, global_id, vec4<f32>(sample, gradient));
 }

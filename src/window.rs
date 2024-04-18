@@ -7,19 +7,17 @@ use winit::{
     window::WindowBuilder,
 };
 
-use crate::{graphics::Graphics, terrain::Terrain};
+use crate::{cloud_world::CloudWorld, graphics::Graphics};
 
 pub async fn run() -> Result<()> {
     let event_loop = EventLoop::new()?;
     let window = WindowBuilder::new()
-        .with_title("cloudy")
+        .with_title("silky clouds")
         .build(&event_loop)?;
     let _ = window.request_inner_size(PhysicalSize::new(1200, 1200));
 
     let mut gfx = Graphics::new(window).await;
-    // let mut world = World::new(&gfx);
-    // let mut compute = Compute::new(&gfx);
-    let mut terrain = Terrain::new(&gfx);
+    let mut cloud_world = CloudWorld::new(&gfx);
 
     event_loop.run(move |event, window_target| match event {
         Event::AboutToWait => {
@@ -39,14 +37,14 @@ pub async fn run() -> Result<()> {
                 ..
             } => window_target.exit(),
             WindowEvent::KeyboardInput { .. } | WindowEvent::MouseInput { .. } => {
-                // terrain.input(event);
+                // TODO: Input?
             }
             WindowEvent::Resized(physical_size) => {
                 gfx.resize(*physical_size);
             }
             WindowEvent::RedrawRequested => {
-                terrain.update();
-                match terrain.render(&gfx) {
+                cloud_world.update();
+                match cloud_world.render(&gfx) {
                     Ok(_) => {}
                     // Reconfigure the surface if lost
                     Err(wgpu::SurfaceError::Lost) => gfx.resize(*gfx.size()),

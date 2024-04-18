@@ -12,14 +12,14 @@ use wgpu::{
 
 use crate::{camera::Camera, graphics::Graphics};
 
-pub struct Terrain {
+pub struct CloudWorld {
     creation_instant: Instant,
     camera: Camera,
     compute_pipeline: ComputePipeline,
     geometry_compute_pipeline: ComputePipeline,
     render_pipeline: RenderPipeline,
     indirect_draw_buffer: Buffer,
-    terrain_vertex_buffer: Buffer,
+    cloud_vertex_buffer: Buffer,
     compute_bind_group: BindGroup,
     geometry_compute_bind_group: BindGroup,
     render_bind_group: BindGroup,
@@ -28,10 +28,10 @@ pub struct Terrain {
 const VOXELS_PER_CHUNK_DIM: u32 = 50;
 const VERTICES_PER_VOXEL: u64 = 1 * 3;
 
-impl Terrain {
+impl CloudWorld {
     pub fn new(gfx: &Graphics) -> Self {
-        let terrain_texture_desc = TextureDescriptor {
-            label: Some("terrain_texture"),
+        let cloud_texture_desc = TextureDescriptor {
+            label: Some("cloud_texture"),
             size: Extent3d {
                 width: VOXELS_PER_CHUNK_DIM + 1,
                 height: VOXELS_PER_CHUNK_DIM + 1,
@@ -44,20 +44,20 @@ impl Terrain {
             usage: TextureUsages::STORAGE_BINDING,
             view_formats: &[TextureFormat::Rgba16Float],
         };
-        let texture = gfx.device().create_texture(&terrain_texture_desc);
+        let texture = gfx.device().create_texture(&cloud_texture_desc);
         let texture_view = texture.create_view(&wgpu::TextureViewDescriptor {
-            label: Some("terrain_texture_view"),
+            label: Some("cloud_texture_view"),
             ..Default::default()
         });
 
         // Compute pipeline
         let compute_shader = gfx
             .device()
-            .create_shader_module(wgpu::include_wgsl!("./shaders/terrain_compute.wgsl"));
+            .create_shader_module(wgpu::include_wgsl!("./shaders/cloud_density.wgsl"));
         let compute_bind_group_layout =
             gfx.device()
                 .create_bind_group_layout(&BindGroupLayoutDescriptor {
-                    label: Some("terrain_compute_bind_group_layout"),
+                    label: Some("cloud_density_bind_group_layout"),
                     entries: &[BindGroupLayoutEntry {
                         binding: 0,
                         visibility: ShaderStages::COMPUTE,
@@ -72,7 +72,7 @@ impl Terrain {
         let compute_pipeline_layout =
             gfx.device()
                 .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                    label: Some("terrain_compute_pipeline_layout"),
+                    label: Some("cloud_density_pipeline_layout"),
                     bind_group_layouts: &[&compute_bind_group_layout],
                     push_constant_ranges: &[PushConstantRange {
                         stages: ShaderStages::COMPUTE,
@@ -82,13 +82,13 @@ impl Terrain {
         let compute_pipeline = gfx
             .device()
             .create_compute_pipeline(&ComputePipelineDescriptor {
-                label: Some("terrain_compute_pipeline"),
+                label: Some("cloud_density_pipeline"),
                 layout: Some(&compute_pipeline_layout),
                 module: &compute_shader,
                 entry_point: "main",
             });
         let compute_bind_group = gfx.device().create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some("terrain_compute_bind_group"),
+            label: Some("cloud_density_bind_group"),
             layout: &compute_bind_group_layout,
             entries: &[wgpu::BindGroupEntry {
                 binding: 0,
@@ -99,11 +99,11 @@ impl Terrain {
         // Geometry generation shader
         let geometry_compute_shader = gfx
             .device()
-            .create_shader_module(wgpu::include_wgsl!("./shaders/terrain_geometry.wgsl"));
+            .create_shader_module(wgpu::include_wgsl!("./shaders/marching_cubes.wgsl"));
         let geometry_compute_bind_group_layout =
             gfx.device()
                 .create_bind_group_layout(&BindGroupLayoutDescriptor {
-                    label: Some("terrain_geometry_compute_bind_group_layout"),
+                    label: Some("marching_cubes_compute_bind_group_layout"),
                     entries: &[
                         // Density data
                         BindGroupLayoutEntry {
@@ -165,7 +165,7 @@ impl Terrain {
         let geometry_compute_pipeline_layout =
             gfx.device()
                 .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                    label: Some("terrain_geometry_compute_pipeline_layout"),
+                    label: Some("marching_cubes_compute_pipeline_layout"),
                     bind_group_layouts: &[&geometry_compute_bind_group_layout],
                     push_constant_ranges: &[PushConstantRange {
                         stages: ShaderStages::COMPUTE,
@@ -175,7 +175,7 @@ impl Terrain {
         let geometry_compute_pipeline =
             gfx.device()
                 .create_compute_pipeline(&ComputePipelineDescriptor {
-                    label: Some("terrain_geometry_compute_pipeline"),
+                    label: Some("marching_cubes_compute_pipeline"),
                     layout: Some(&geometry_compute_pipeline_layout),
                     module: &geometry_compute_shader,
                     entry_point: "main",
@@ -185,7 +185,7 @@ impl Terrain {
         let bind_group_layout = gfx
             .device()
             .create_bind_group_layout(&BindGroupLayoutDescriptor {
-                label: Some("terrain_bind_group_layout"),
+                label: Some("cloud_bind_group_layout"),
                 entries: &[BindGroupLayoutEntry {
                     binding: 0,
                     visibility: ShaderStages::VERTEX,
@@ -200,22 +200,22 @@ impl Terrain {
         let render_pipeline_layout =
             gfx.device()
                 .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                    label: Some("terrain_render_pipeline_layout"),
+                    label: Some("cloud_render_pipeline_layout"),
                     bind_group_layouts: &[&bind_group_layout],
                     push_constant_ranges: &[PushConstantRange {
                         stages: ShaderStages::VERTEX_FRAGMENT,
                         range: 0..8,
                     }],
                 });
-        let terrain_render_shader = gfx
+        let cloud_render_shader = gfx
             .device()
-            .create_shader_module(wgpu::include_wgsl!("./shaders/terrain.wgsl"));
+            .create_shader_module(wgpu::include_wgsl!("./shaders/chunk_render.wgsl"));
 
         const ATTRIBS: [VertexAttribute; 2] = vertex_attr_array![0 => Float32x4, 1 => Float32x4];
-        const TERRAIN_VERTEX_SIZE: u64 = 2 * 4 * 4;
+        const CLOUD_VERTEX_SIZE: u64 = 2 * 4 * 4;
 
         let aligned_vertex_desc = VertexBufferLayout {
-            array_stride: TERRAIN_VERTEX_SIZE,
+            array_stride: CLOUD_VERTEX_SIZE,
             step_mode: wgpu::VertexStepMode::Vertex,
             attributes: &ATTRIBS,
         };
@@ -223,15 +223,15 @@ impl Terrain {
         let render_pipeline =
             gfx.device()
                 .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-                    label: Some("terrain_render_pipeline"),
+                    label: Some("cloud_render_pipeline"),
                     layout: Some(&render_pipeline_layout),
                     vertex: wgpu::VertexState {
-                        module: &terrain_render_shader,
+                        module: &cloud_render_shader,
                         entry_point: "vs_main",
                         buffers: &[aligned_vertex_desc],
                     },
                     fragment: Some(wgpu::FragmentState {
-                        module: &terrain_render_shader,
+                        module: &cloud_render_shader,
                         entry_point: "fs_main",
                         targets: &[Some(wgpu::ColorTargetState {
                             format: gfx.config().format,
@@ -246,7 +246,7 @@ impl Terrain {
                         ..Default::default()
                     },
                     depth_stencil: Some(DepthStencilState {
-                        format: crate::texture::Texture::DEPTH_FORMAT,
+                        format: wgpu::TextureFormat::Depth32Float,
                         depth_write_enabled: true,
                         depth_compare: wgpu::CompareFunction::Less,
                         stencil: Default::default(),
@@ -258,7 +258,7 @@ impl Terrain {
 
         let camera = Camera::new(gfx);
         let main_bind_group = gfx.device().create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some("terrain_bind_group"),
+            label: Some("cloud_bind_group"),
             layout: &bind_group_layout,
             entries: &[wgpu::BindGroupEntry {
                 binding: 0,
@@ -266,39 +266,39 @@ impl Terrain {
             }],
         });
 
-        let terrain_vertex_buffer = gfx.device().create_buffer(&BufferDescriptor {
-            label: Some("terrain_vertex_buffer"),
+        let cloud_vertex_buffer = gfx.device().create_buffer(&BufferDescriptor {
+            label: Some("cloud_vertex_buffer"),
             size: VOXELS_PER_CHUNK_DIM as u64
                 * VOXELS_PER_CHUNK_DIM as u64
                 * VOXELS_PER_CHUNK_DIM as u64
-                * TERRAIN_VERTEX_SIZE
+                * CLOUD_VERTEX_SIZE
                 * VERTICES_PER_VOXEL,
             usage: BufferUsages::STORAGE | BufferUsages::VERTEX,
             mapped_at_creation: false,
         });
 
         let indirect_draw_buffer = gfx.device().create_buffer(&BufferDescriptor {
-            label: Some("terrain_indirect_draw_buffer"),
+            label: Some("cloud_indirect_draw_buffer"),
             size: std::mem::size_of::<DrawIndirect>() as u64,
             usage: BufferUsages::STORAGE | BufferUsages::INDIRECT | BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
 
         let edge_table_buffer = gfx.device().create_buffer_init(&BufferInitDescriptor {
-            label: Some("terrain_edge_table_buffer"),
+            label: Some("cloud_edge_table_buffer"),
             contents: bytemuck::cast_slice(&crate::marching_cubes::EDGE_TABLE),
             usage: BufferUsages::STORAGE,
         });
 
         let tri_table_buffer = gfx.device().create_buffer_init(&BufferInitDescriptor {
-            label: Some("terrain_tri_table_buffer"),
+            label: Some("cloud_tri_table_buffer"),
             contents: bytemuck::cast_slice(&crate::marching_cubes::TRI_TABLE),
             usage: BufferUsages::STORAGE,
         });
 
         let geometry_compute_bind_group =
             gfx.device().create_bind_group(&wgpu::BindGroupDescriptor {
-                label: Some("terrain_geometry_compute_bind_group"),
+                label: Some("marching_cubes_compute_bind_group"),
                 layout: &geometry_compute_bind_group_layout,
                 entries: &[
                     wgpu::BindGroupEntry {
@@ -311,7 +311,7 @@ impl Terrain {
                     },
                     wgpu::BindGroupEntry {
                         binding: 2,
-                        resource: terrain_vertex_buffer.as_entire_binding(),
+                        resource: cloud_vertex_buffer.as_entire_binding(),
                     },
                     wgpu::BindGroupEntry {
                         binding: 3,
@@ -332,7 +332,7 @@ impl Terrain {
             compute_pipeline,
             geometry_compute_pipeline,
             geometry_compute_bind_group,
-            terrain_vertex_buffer,
+            cloud_vertex_buffer,
             indirect_draw_buffer,
             render_pipeline,
         }
@@ -371,14 +371,14 @@ impl Terrain {
             let mut encoder =
                 gfx.device()
                     .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                        label: Some("terrain_render_command_encoder"),
+                        label: Some("cloud_render_command_encoder"),
                     });
 
             // Generate density data
             // This step operates on the corners of the voxels
             {
                 let mut compute_pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
-                    label: Some("terrain_compute_pass"),
+                    label: Some("cloud_density_pass"),
                     timestamp_writes: None,
                 });
                 compute_pass.set_pipeline(&self.compute_pipeline);
@@ -391,7 +391,7 @@ impl Terrain {
             // This step operates on the centers of the voxels
             {
                 let mut compute_pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
-                    label: Some("terrain_geometry_compute_pass"),
+                    label: Some("marching_cubes_compute_pass"),
                     timestamp_writes: None,
                 });
                 compute_pass.set_pipeline(&self.geometry_compute_pipeline);
@@ -403,7 +403,7 @@ impl Terrain {
             // Render mesh
             {
                 let mut render_pass = encoder.begin_render_pass(&RenderPassDescriptor {
-                    label: Some("terrain_render_pass"),
+                    label: Some("cloud_render_pass"),
                     color_attachments: &[Some(RenderPassColorAttachment {
                         view: &output_view,
                         resolve_target: None,
@@ -433,7 +433,7 @@ impl Terrain {
                 render_pass.set_pipeline(&self.render_pipeline);
                 render_pass.set_push_constants(ShaderStages::VERTEX_FRAGMENT, 0, push_constants);
                 render_pass.set_bind_group(0, &self.render_bind_group, &[]);
-                render_pass.set_vertex_buffer(0, self.terrain_vertex_buffer.slice(..));
+                render_pass.set_vertex_buffer(0, self.cloud_vertex_buffer.slice(..));
                 render_pass.draw_indirect(&self.indirect_draw_buffer, 0);
             }
             gfx.queue().submit(std::iter::once(encoder.finish()));
@@ -441,7 +441,7 @@ impl Terrain {
         output.present();
 
         // let (rx, tx) = flume::bounded::<Result<(), BufferAsyncError>>(1);
-        // let draw_buffer_slice = self.terrain_vertex_buffer.slice(..);
+        // let draw_buffer_slice = self.cloud_vertex_buffer.slice(..);
         // draw_buffer_slice.map_async(wgpu::MapMode::Read, move |result| rx.send(result).unwrap());
         // gfx.device().poll(wgpu::Maintain::Wait);
         // pollster::block_on(tx.recv_async()).unwrap().unwrap();
@@ -456,7 +456,7 @@ impl Terrain {
         //         .count();
         // }
         // println!();
-        // self.terrain_vertex_buffer.unmap();
+        // self.cloud_vertex_buffer.unmap();
         Ok(())
     }
 }
