@@ -1,5 +1,5 @@
+use nuage::window;
 use pollster::FutureExt as _;
-use slosh::window;
 
 fn main() -> anyhow::Result<()> {
     env_logger::init();

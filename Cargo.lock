@@ -991,6 +991,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "nuage"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "bytemuck",
+ "env_logger",
+ "flume",
+ "log",
+ "nalgebra",
+ "nalgebra-glm",
+ "pollster",
+ "wgpu",
+ "winit",
+]
+
+[[package]]
 name = "num-complex"
 version = "0.4.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1425,22 +1441,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8f92a496fb766b417c996b9c5e57daf2f7ad3b0bebe1ccfca4856390e3d3bb67"
 dependencies = [
  "autocfg",
-]
-
-[[package]]
-name = "slosh"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "bytemuck",
- "env_logger",
- "flume",
- "log",
- "nalgebra",
- "nalgebra-glm",
- "pollster",
- "wgpu",
- "winit",
 ]
 
 [[package]]
