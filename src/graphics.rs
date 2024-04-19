@@ -1,5 +1,5 @@
-use wgpu::{Surface, SurfaceConfiguration};
-use winit::{dpi::PhysicalSize, window::Window};
+
+use winit::{dpi::PhysicalSize};
 
 pub struct Graphics {
     device: wgpu::Device,

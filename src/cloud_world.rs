@@ -341,7 +341,7 @@ impl CloudWorld {
     }
 
     pub fn update(&mut self) {
-        self.world_time += 1.0 / 30.0; // self.creation_instant.elapsed().as_secs_f32();
+        self.world_time += 1.0 / 60.0; // self.creation_instant.elapsed().as_secs_f32();
         self.camera.update(self.world_time);
     }
 
