@@ -23,6 +23,8 @@ pub struct CloudWorld {
     density_bind_group: BindGroup,
     marching_cubes_bind_group: BindGroup,
     main_bind_group: BindGroup,
+    last_fps_instant: Instant,
+    fps_frame_count: u32,
 }
 
 const VOXELS_PER_CHUNK_DIM: u32 = 50;
@@ -335,11 +337,26 @@ impl CloudWorld {
             cloud_vertex_buffer,
             indirect_draw_buffer,
             render_pipeline,
+            last_fps_instant: Instant::now(),
+            fps_frame_count: 0,
         }
     }
 
     pub fn update(&mut self) {
         let world_time = self.creation_instant.elapsed().as_secs_f32();
+
+        let time_since_last_fps = self.last_fps_instant.elapsed().as_secs_f32();
+        // Log FPS every 5 seconds.
+        if time_since_last_fps >= 5.0 {
+            println!(
+                "FPS: {}",
+                (1.0 / (time_since_last_fps / (self.fps_frame_count as f32))).round()
+            );
+            self.fps_frame_count = 0;
+            self.last_fps_instant = Instant::now();
+        }
+        self.fps_frame_count += 1;
+
         self.camera.update(world_time);
     }
 
