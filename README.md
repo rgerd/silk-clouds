@@ -5,7 +5,7 @@
 
 Rendering a density function in real time using marching cubes without leaving the GPU.
 
-Made with Rust + WGPU. Developed on an M2 Macbook Air, but probably works on any moderately powerful GPU.
+Made with Rust + WGPU. Runs at 60 FPS on an M2 Macbook Air, but probably works on any moderately powerful GPU.
 
 To try it out, clone the repository and run `cargo run --release` from the root directory. Make sure you have [the Rust toolchain](https://www.rust-lang.org/learn/get-started) installed.
 
