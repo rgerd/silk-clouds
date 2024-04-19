@@ -1,5 +1,6 @@
 use std::time::Instant;
 
+use log::info;
 use wgpu::{
     util::{BufferInitDescriptor, DeviceExt, DrawIndirect},
     vertex_attr_array, BindGroup, BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingType,
@@ -346,9 +347,9 @@ impl CloudWorld {
         let world_time = self.creation_instant.elapsed().as_secs_f32();
 
         let time_since_last_fps = self.last_fps_instant.elapsed().as_secs_f32();
-        // Log FPS every 5 seconds.
+        // Log FPS every 5 seconds. Set RUST_LOG=info to see the log.
         if time_since_last_fps >= 5.0 {
-            println!(
+            info!(
                 "FPS: {}",
                 (1.0 / (time_since_last_fps / (self.fps_frame_count as f32))).round()
             );
