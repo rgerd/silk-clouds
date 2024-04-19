@@ -1,8 +1,9 @@
-# Silky Clouds
+<h1 align="center">
+  <img width="256" alt="clouds-thumbnail" src="https://github.com/rgerd/silk-clouds/assets/4724014/0eaa8581-237d-4967-9762-c1ec5d7f44c7">
+  <p>silky clouds</p>
+</h1>
 
-
-
-Rendering a density function using marching cubes without leaving the GPU.
+Rendering a density function in real time using marching cubes without leaving the GPU.
 
 Made with Rust + WGPU. Developed on an M2 Macbook Air, but probably works on any moderately powerful GPU.
 
