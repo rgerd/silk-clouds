@@ -7,6 +7,8 @@ Rendering a density function in real time using marching cubes without leaving t
 
 Made with Rust + WGPU. Developed on an M2 Macbook Air, but probably works on any moderately powerful GPU.
 
+To try it out, clone the repository and run `cargo run --release` from the root directory. Make sure you have [the Rust toolchain](https://www.rust-lang.org/learn/get-started) installed.
+
 ## How it works
 This technique samples a simplex noise function into a 3D texture, runs [marching cubes](https://en.wikipedia.org/wiki/Marching_cubes) on that texture, filling a buffer with vertex data, and then uses an [indirect draw call](https://toji.dev/webgpu-best-practices/indirect-draws.html) to draw the generated vertex data.
 
