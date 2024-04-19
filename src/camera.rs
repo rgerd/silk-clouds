@@ -2,7 +2,7 @@ use std::f64::consts::PI;
 
 use glm::{Mat4, Vec3};
 use nalgebra::Point3;
-use wgpu::{util::DeviceExt as _, BindingResource};
+use wgpu::{util::DeviceExt as _, BindingResource, Extent3d};
 
 use crate::{graphics::Graphics, texture};
 
@@ -48,7 +48,11 @@ impl Camera {
 
             depth_texture: texture::Texture::create_depth_texture(
                 device,
-                gfx.config(),
+                Extent3d {
+                    width: gfx.size().width,
+                    height: gfx.size().height,
+                    depth_or_array_layers: 1,
+                },
                 "Depth texture",
             ),
         }

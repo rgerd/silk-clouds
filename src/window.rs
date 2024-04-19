@@ -3,7 +3,7 @@ use winit::{
     dpi::PhysicalSize,
     event::*,
     event_loop::EventLoop,
-    keyboard::{KeyCode, PhysicalKey},
+    keyboard::{Key, KeyCode, PhysicalKey},
     window::WindowBuilder,
 };
 
@@ -14,10 +14,9 @@ pub async fn run() -> Result<()> {
     let window = WindowBuilder::new()
         .with_title("silky clouds")
         .build(&event_loop)?;
-    let _ = window.request_inner_size(PhysicalSize::new(1200, 1200));
+    let _ = window.request_inner_size(PhysicalSize::new(800, 800));
 
     let mut gfx = Graphics::new(window).await;
-    let mut cloud_world = CloudWorld::new(&gfx);
 
     event_loop.run(move |event, window_target| match event {
         Event::AboutToWait => {
@@ -36,24 +35,23 @@ pub async fn run() -> Result<()> {
                     },
                 ..
             } => window_target.exit(),
-            WindowEvent::KeyboardInput { .. } | WindowEvent::MouseInput { .. } => {
+            WindowEvent::KeyboardInput {
+                event:
+                    KeyEvent {
+                        physical_key: PhysicalKey::Code(KeyCode::Space),
+                        state: ElementState::Pressed,
+                        repeat: false,
+                        ..
+                    },
+                ..
+            } => {}
+            WindowEvent::MouseInput { .. } => {
                 // TODO: Input?
             }
             WindowEvent::Resized(physical_size) => {
                 gfx.resize(*physical_size);
             }
-            WindowEvent::RedrawRequested => {
-                cloud_world.update();
-                match cloud_world.render(&gfx) {
-                    Ok(_) => {}
-                    // Reconfigure the surface if lost
-                    Err(wgpu::SurfaceError::Lost) => gfx.resize(*gfx.size()),
-                    // The system is out of memory, we should probably quit
-                    Err(wgpu::SurfaceError::OutOfMemory) => window_target.exit(),
-                    // All other errors (Outdated, Timeout) should be resolved by the next frame
-                    Err(e) => eprintln!("{:?}", e),
-                }
-            }
+            WindowEvent::RedrawRequested => {}
             _ => {}
         },
         _ => {}

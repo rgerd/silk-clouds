@@ -1,16 +1,16 @@
-use std::time::Instant;
+use std::{mem, time::Instant};
 
 use wgpu::{
     util::{BufferInitDescriptor, DeviceExt, DrawIndirect},
     vertex_attr_array, BindGroup, BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingType,
-    Buffer, BufferDescriptor, BufferUsages, Color, ComputePipeline, ComputePipelineDescriptor,
-    DepthStencilState, Extent3d, LoadOp, Operations, PushConstantRange, RenderPassColorAttachment,
-    RenderPassDescriptor, RenderPipeline, ShaderStages, StoreOp, SurfaceError, TextureDescriptor,
-    TextureDimension, TextureFormat, TextureUsages, TextureViewDimension, VertexAttribute,
-    VertexBufferLayout,
+    Buffer, BufferAsyncError, BufferDescriptor, BufferUsages, Color, ComputePipeline,
+    ComputePipelineDescriptor, DepthStencilState, Extent3d, LoadOp, Operations, PushConstantRange,
+    RenderPassColorAttachment, RenderPassDescriptor, RenderPipeline, ShaderStages, StoreOp,
+    SurfaceError, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages,
+    TextureViewDimension, VertexAttribute, VertexBufferLayout,
 };
 
-use crate::{camera::Camera, graphics::Graphics};
+use crate::{camera::Camera, graphics::Graphics, texture::Texture};
 
 pub struct CloudWorld {
     creation_instant: Instant,
@@ -23,6 +23,7 @@ pub struct CloudWorld {
     density_bind_group: BindGroup,
     marching_cubes_bind_group: BindGroup,
     main_bind_group: BindGroup,
+    world_time: f32,
 }
 
 const VOXELS_PER_CHUNK_DIM: u32 = 50;
@@ -234,7 +235,7 @@ impl CloudWorld {
                         module: &chunk_render_shader,
                         entry_point: "fs_main",
                         targets: &[Some(wgpu::ColorTargetState {
-                            format: gfx.config().format,
+                            format: TextureFormat::Rgba8UnormSrgb,
                             blend: Some(wgpu::BlendState::REPLACE),
                             write_mask: wgpu::ColorWrites::ALL,
                         })],
@@ -335,19 +336,37 @@ impl CloudWorld {
             cloud_vertex_buffer,
             indirect_draw_buffer,
             render_pipeline,
+            world_time: 0.0,
         }
     }
 
     pub fn update(&mut self) {
-        let world_time = self.creation_instant.elapsed().as_secs_f32();
-        self.camera.update(world_time);
+        self.world_time += 1.0 / 30.0; // self.creation_instant.elapsed().as_secs_f32();
+        self.camera.update(self.world_time);
     }
 
-    pub fn render(&self, gfx: &Graphics) -> anyhow::Result<(), SurfaceError> {
-        let output = gfx.surface().get_current_texture()?;
-        let output_view = output
-            .texture
-            .create_view(&wgpu::TextureViewDescriptor::default());
+    pub fn render(
+        &self,
+        gfx: &Graphics,
+        frames: &mut Option<Vec<Vec<u8>>>,
+    ) -> anyhow::Result<(), SurfaceError> {
+        let gif_target = Texture::create_render_target(
+            gfx.device(),
+            "gif_target",
+            gfx.size().width,
+            gfx.size().height,
+        );
+        let gif_target_view = gif_target.0.create_view(&wgpu::TextureViewDescriptor {
+            label: Some("gif_target_view"),
+            format: Some(TextureFormat::Rgba8UnormSrgb),
+            ..Default::default()
+        });
+
+        let pixel_size = mem::size_of::<[u8; 4]>() as u32;
+        let align = wgpu::COPY_BYTES_PER_ROW_ALIGNMENT;
+        let unpadded_bytes_per_row = pixel_size * gfx.size().width;
+        let padding = (align - unpadded_bytes_per_row % align) % align;
+        let padded_bytes_per_row = unpadded_bytes_per_row + padding;
 
         self.camera.write_data_buffer(gfx.queue());
         let world_time = self.creation_instant.elapsed().as_secs_f32();
@@ -403,9 +422,9 @@ impl CloudWorld {
             // Render mesh
             {
                 let mut render_pass = encoder.begin_render_pass(&RenderPassDescriptor {
-                    label: Some("cloud_render_pass"),
+                    label: Some("cloud_render_pass_gif"),
                     color_attachments: &[Some(RenderPassColorAttachment {
-                        view: &output_view,
+                        view: &gif_target_view,
                         resolve_target: None,
                         ops: Operations {
                             load: if chunk_id == 0 {
@@ -438,7 +457,58 @@ impl CloudWorld {
             }
             gfx.queue().submit(std::iter::once(encoder.finish()));
         }
-        output.present();
+
+        {
+            let mut encoder =
+                gfx.device()
+                    .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                        label: Some("cloud_render_command_encoder"),
+                    });
+            encoder.copy_texture_to_buffer(
+                wgpu::ImageCopyTexture {
+                    texture: &gif_target.0,
+                    mip_level: 0,
+                    origin: wgpu::Origin3d::ZERO,
+                    aspect: wgpu::TextureAspect::All,
+                },
+                wgpu::ImageCopyBuffer {
+                    buffer: &gif_target.1,
+                    layout: wgpu::ImageDataLayout {
+                        offset: 0,
+                        bytes_per_row: Some(padded_bytes_per_row),
+                        rows_per_image: Some(gfx.size().height),
+                    },
+                },
+                wgpu::Extent3d {
+                    width: gfx.size().width,
+                    height: gfx.size().height,
+                    depth_or_array_layers: 1,
+                },
+            );
+            gfx.queue().submit(std::iter::once(encoder.finish()));
+        }
+
+        // output.present();
+
+        // Create the map request
+        let buffer_slice = gif_target.1.slice(..);
+        let (rx, tx) = flume::bounded::<Result<(), BufferAsyncError>>(1);
+        buffer_slice.map_async(wgpu::MapMode::Read, move |result| rx.send(result).unwrap());
+        gfx.device().poll(wgpu::Maintain::Wait);
+        pollster::block_on(tx.recv_async()).unwrap().unwrap();
+        {
+            let draw_buffer_view = buffer_slice.get_mapped_range();
+            let data = draw_buffer_view
+                .chunks(padded_bytes_per_row as _)
+                .map(|chunk| &chunk[..unpadded_bytes_per_row as _])
+                .flatten()
+                .map(|x| *x)
+                .collect::<Vec<_>>();
+            if let Some(frames) = frames {
+                frames.push(data);
+            }
+        }
+        gif_target.1.unmap();
 
         // Uncomment below to read back the vertex buffer.
         //
