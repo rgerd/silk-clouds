@@ -39,17 +39,15 @@ fn snoise(v: vec2<f32>) -> f32 {
 
 // 3D simplex noise, with layered octaves.
 fn noise(v: vec3<f32>) -> f32 {
-  let cloud_time = push.time / 14.0;
+  let cloud_time = 20.0;//push.time / 14.0;
   var out = 0.0;
   
-  var freq = 0.5;
+  var freq = 6.0; // Proportional to the number of vertices
   out += snoise(vec2(v.x * freq, v.y * freq + cloud_time)) * snoise(vec2(v.y * freq + cloud_time, v.z * freq));
 
-  freq = 1.0;
-  out += snoise(vec2(v.x * freq, v.y * freq + cloud_time)) * snoise(vec2(v.y * freq + cloud_time, v.z * freq)) * 0.5;
+  out += snoise(vec2(v.x * freq, v.y * freq + cloud_time)) * snoise(vec2(v.y * freq + cloud_time, v.z * freq));
 
-  freq = 2.0;
-  out += snoise(vec2(v.x * freq, v.y * freq + cloud_time)) * snoise(vec2(v.y * freq + cloud_time, v.z * freq)) * 0.2;
+  out += snoise(vec2(v.x * freq, v.y * freq + cloud_time)) * snoise(vec2(v.y * freq + cloud_time, v.z * freq));
 
   return clamp(pow(out * 2.0, 1.2), 0.0, 1.0);
 }

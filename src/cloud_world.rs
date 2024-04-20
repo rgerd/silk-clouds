@@ -4,11 +4,11 @@ use log::info;
 use wgpu::{
     util::{BufferInitDescriptor, DeviceExt, DrawIndirect},
     vertex_attr_array, BindGroup, BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingType,
-    Buffer, BufferDescriptor, BufferUsages, Color, ComputePipeline, ComputePipelineDescriptor,
-    DepthStencilState, Extent3d, LoadOp, Operations, PushConstantRange, RenderPassColorAttachment,
-    RenderPassDescriptor, RenderPipeline, ShaderStages, StoreOp, SurfaceError, TextureDescriptor,
-    TextureDimension, TextureFormat, TextureUsages, TextureViewDimension, VertexAttribute,
-    VertexBufferLayout,
+    Buffer, BufferAsyncError, BufferDescriptor, BufferUsages, Color, ComputePipeline,
+    ComputePipelineDescriptor, DepthStencilState, Extent3d, LoadOp, Operations, PushConstantRange,
+    RenderPassColorAttachment, RenderPassDescriptor, RenderPipeline, ShaderStages, StoreOp,
+    SurfaceError, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages,
+    TextureViewDimension, VertexAttribute, VertexBufferLayout,
 };
 
 use crate::{camera::Camera, graphics::Graphics};
@@ -26,10 +26,11 @@ pub struct CloudWorld {
     main_bind_group: BindGroup,
     last_fps_instant: Instant,
     fps_frame_count: u32,
+    max_vert_count: u32,
 }
 
 const VOXELS_PER_CHUNK_DIM: u32 = 50;
-const VERTICES_PER_VOXEL: u64 = 1 * 3; // Assumes an average of 1 triangle per voxel
+const VERTICES_PER_VOXEL: u64 = 2 * 3; // Assumes an average of 1 triangle per voxel
 
 impl CloudWorld {
     pub fn new(gfx: &Graphics) -> Self {
@@ -283,7 +284,10 @@ impl CloudWorld {
         let indirect_draw_buffer = gfx.device().create_buffer(&BufferDescriptor {
             label: Some("render_indirect_draw_buffer"),
             size: std::mem::size_of::<DrawIndirect>() as u64,
-            usage: BufferUsages::STORAGE | BufferUsages::INDIRECT | BufferUsages::COPY_DST,
+            usage: BufferUsages::STORAGE
+                | BufferUsages::INDIRECT
+                | BufferUsages::COPY_DST
+                | BufferUsages::MAP_READ,
             mapped_at_creation: false,
         });
 
@@ -340,6 +344,7 @@ impl CloudWorld {
             render_pipeline,
             last_fps_instant: Instant::now(),
             fps_frame_count: 0,
+            max_vert_count: 0,
         }
     }
 
@@ -361,7 +366,7 @@ impl CloudWorld {
         self.camera.update(world_time);
     }
 
-    pub fn render(&self, gfx: &Graphics) -> anyhow::Result<(), SurfaceError> {
+    pub fn render(&mut self, gfx: &Graphics) -> anyhow::Result<(), SurfaceError> {
         let output = gfx.surface().get_current_texture()?;
         let output_view = output
             .texture
@@ -369,6 +374,8 @@ impl CloudWorld {
 
         self.camera.write_data_buffer(gfx.queue());
         let world_time = self.creation_instant.elapsed().as_secs_f32();
+
+        let mut vert_total = 0_u32;
 
         // Render a 2x2x2 grid of chunks in 8 render passes.
         // Each chunk saturates the GPU with work.
@@ -455,8 +462,30 @@ impl CloudWorld {
                 render_pass.draw_indirect(&self.indirect_draw_buffer, 0);
             }
             gfx.queue().submit(std::iter::once(encoder.finish()));
+
+            let (rx, tx) = flume::bounded::<Result<(), BufferAsyncError>>(1);
+            let indirect_draw_buffer_slice = self.indirect_draw_buffer.slice(..);
+            indirect_draw_buffer_slice
+                .map_async(wgpu::MapMode::Read, move |result| rx.send(result).unwrap());
+            gfx.device().poll(wgpu::Maintain::Wait);
+            pollster::block_on(tx.recv_async()).unwrap().unwrap();
+            {
+                let draw_buffer_view = indirect_draw_buffer_slice.get_mapped_range();
+                let vert_count: u32 = *bytemuck::from_bytes(
+                    draw_buffer_view
+                        .chunks_exact(std::mem::size_of::<u32>())
+                        .next()
+                        .unwrap(),
+                );
+                vert_total += vert_count;
+            }
+            self.indirect_draw_buffer.unmap();
         }
         output.present();
+
+        // self.max_vert_count = self.max_vert_count.max(vert_total);
+
+        println!("Triangle count: {}", vert_total / 3);
 
         // Uncomment below to read back the vertex buffer.
         //
