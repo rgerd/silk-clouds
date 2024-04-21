@@ -5,7 +5,7 @@
 
 Rendering a density function in real time using marching cubes without leaving the GPU.
 
-Runs at 60 FPS generating up to around 2.8 million vertices + normals inside a voxel cube with side-length 100 (1 million voxels) in multiple passes on an M2 Macbook Air.
+Runs at 60 FPS generating up to around 2.8 million vertex positions + normals inside a voxel cube with side-length 100 (1 million voxels) in multiple passes on an M2 Macbook Air.
 
 To try it out, clone the repository and run `cargo run --release` from the root directory. Make sure you have [the Rust toolchain](https://www.rust-lang.org/learn/get-started) installed.
 
